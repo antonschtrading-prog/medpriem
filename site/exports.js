@@ -3,8 +3,8 @@ export function cleanFilename(filename) {
   return String(filename || 'приём').replace(/\.[^.]+$/, '').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 70) || 'приём';
 }
 
-export function exportTranscriptText({ fileName, text, partial = false, now = new Date() }) {
-  const header = ['МЕДПРИЁМ — РАСШИФРОВКА (ЧЕРНОВИК)', `Дата экспорта: ${now.toLocaleString('ru-RU')}`, `Исходный файл: ${fileName || 'не указан'}`, 'Говорящие автоматически НЕ определены. Проверяйте числа, дозировки, имена препаратов и медицинские факты.', ...(partial ? ['ВНИМАНИЕ: обработана только часть аудиозаписи.'] : []), '', ''];
+export function exportTranscriptText({ fileName, text, partial = false, speakersDetected = false, now = new Date() }) {
+  const header = ['МЕДПРИЁМ — РАСШИФРОВКА (ЧЕРНОВИК)', `Дата экспорта: ${now.toLocaleString('ru-RU')}`, `Исходный файл: ${fileName || 'не указан'}`, speakersDetected ? 'Говорящие определены автоматически (экспериментально); разметка требует проверки по аудио. Проверяйте числа, дозировки и препараты.' : 'Говорящие автоматически НЕ определены. Проверяйте числа, дозировки, имена препаратов и медицинские факты.', ...(partial ? ['ВНИМАНИЕ: обработана только часть аудиозаписи.'] : []), '', ''];
   return header.join('\n') + String(text || '');
 }
 

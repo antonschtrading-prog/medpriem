@@ -37,11 +37,19 @@ self.onmessage = async ({ data }) => {
     self.postMessage({ type: 'engine-state', state: 'running' });
     // CTC models do not support Whisper's language/task/decoding generation options.
     const options = model.family === 'whisper'
-      ? { language: 'russian', task: 'transcribe', return_timestamps: false,
+      ? { language: 'russian', task: 'transcribe', return_timestamps: true,
           ...(data.retry ? { no_repeat_ngram_size: 4, repetition_penalty: 1.12, max_new_tokens: 160 } : {}) }
       : {};
-    const result = await pipe(samples, options);
-    self.postMessage({ type: 'recognized', id: data.id, text: result?.text || '' });
+    let result;
+    try {
+      result = await pipe(samples, options);
+    } catch (error) {
+      // Some older ONNX Whisper exports cannot produce timestamps.
+      // Keep previous transcription behavior rather than failing the whole recording.
+      if (model.family !== 'whisper' || !/timestamp|attention|alignment/i.test(String(error?.message || error))) throw error;
+      result = await pipe(samples, { ...options, return_timestamps: false });
+    }
+    self.postMessage({ type: 'recognized', id: data.id, text: result?.text || '', chunks: Array.isArray(result?.chunks) ? result.chunks.map(c => ({ text: c.text, timestamp: c.timestamp })) : [] });
   } catch (error) {
     self.postMessage({ type: 'error', id: data?.id, message: error instanceof Error ? error.message : String(error) });
   } finally {

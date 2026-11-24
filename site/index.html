@@ -10,7 +10,7 @@
 </head>
 <body>
   <main class="shell">
-    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Прототип 0.4</span></header>
+    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Прототип 0.5</span></header>
     <section class="hero">
       <p class="eyebrow">ЭКСПЕРИМЕНТАЛЬНЫЙ РЕЖИМ</p>
       <h2>Расшифруйте запись приёма без сервера и подписок</h2>
@@ -30,6 +30,7 @@
         <select id="asr-model"><option value="tiny">Tiny · быстрый тест</option><option value="base" selected>Base · приоритет точности</option><option value="small">Small · только на мощном устройстве</option><option value="xlsr_ru">Wav2Vec2 XLSR · русский · экспериментально</option><option value="medium">Whisper Medium · крайне тяжёлая · экспериментально</option></select>
       </label>
       <p class="tiny">Новая русскоязычная Wav2Vec2 XLSR — отдельное семейство распознавания; Whisper Medium особенно тяжёлая. Обе новые модели пока не проверены на реальном Safari. На iPhone начинайте с Base. При зацикливании Whisper программа один раз повторяет обработку фрагмента с другими параметрами. Нерешённые участки отмечаются для прослушивания; эта проверка не гарантирует восстановление правильных слов.</p>
+      <label class="consent"><input type="checkbox" id="speaker-after"><span>Экспериментально: автоматически определить говорящих после расшифровки. Потребует дополнительной памяти и загрузки локальной модели. Для длинных записей и iPhone сначала используйте короткий тест.</span></label>
       <label class="consent"><input type="checkbox" id="privacy-agree"><span>Это тестовая запись без реальных данных пациента. Понимаю, что модель и библиотека загружаются из внешних источников.</span></label>
       <div class="actions"><button type="button" id="run" class="primary" disabled>Начать расшифровку</button><button type="button" id="cancel" class="secondary" disabled>Остановить</button><button type="button" id="rerun" class="secondary" disabled>Повторить другой моделью</button></div>
       <div class="progress-wrap"><progress id="progress" max="100" value="0" aria-label="Прогресс расшифровки"></progress><span id="segment-count" class="tiny"></span></div>
@@ -42,7 +43,7 @@
       </div>
     </section>
     <section class="panel" aria-labelledby="step3"><span class="number">03</span><h3 id="step3">Проверить и сохранить текст</h3>
-      <p class="muted">Таймкоды соответствуют началу фрагментов; границы реплик могут не совпадать. Автоматического разделения врача и пациента пока нет.</p>
+      <p class="muted">Таймкоды соответствуют началу фрагментов; границы реплик могут не совпадать. Автоматическое определение голосов экспериментальное и не проверено на реальном аудио. Для контроля можно назначить говорящего каждому 25-секундному фрагменту. Если внутри фрагмента говорят оба, оставьте «Не определён».</p>
       <textarea id="transcript" spellcheck="true" placeholder="Здесь появится расшифровка. Её можно исправлять вручную." aria-label="Текст расшифровки"></textarea>
       <p id="note" class="tiny" aria-live="polite"></p>
       <div class="review-box" id="comparison-box" hidden><h4>Предыдущая расшифровка</h4>
@@ -50,6 +51,7 @@
         <textarea id="previous-transcript" readonly aria-label="Предыдущая расшифровка"></textarea>
         <p class="tiny">Сравнение в пределах открытой вкладки. Перед закрытием скачайте нужные результаты в TXT. Предыдущий текст не отправляется на сервер.</p>
       </div>
+      <div class="review-box" id="speaker-box"><h4>Автоматическое разделение голосов · экспериментально</h4><p class="tiny">Sherpa-ONNX определяет интервалы речи разных людей непосредственно на устройстве. Внешние веса и WASM загружаются при первом запуске. Это отдельная проверка после распознавания; точное соответствие каждого слова голосу пока не гарантировано.</p><button type="button" id="speaker-auto" class="secondary" disabled>Автоматически определить говорящих</button><p id="speaker-status" class="status" role="status" aria-live="polite"></p><div id="speaker-turns" class="speaker-list"></div><button type="button" id="speaker-export-auto" class="secondary" disabled>Сохранить автоматически размеченный TXT</button><hr><p class="tiny">Резервная ручная разметка целых аудиофрагментов, не автоматическая диаризация. Если голоса сменяются внутри фрагмента, не назначайте одного говорящего всему участку. Исходная расшифровка не меняется.</p><div id="speaker-list" class="speaker-list"></div><button type="button" id="speaker-save" class="secondary" disabled>Сохранить текст с отметками говорящих</button></div>
       <div class="review-box"><h4>Проверка медицинских фрагментов</h4>
         <p class="tiny">Зацикленные фрагменты помечаются для обязательного прослушивания. Числа, дозы и термины автоматически не исправляются. Нажмите на отметку, чтобы прослушать соответствующий фрагмент оригинальной записи. Это подсказки для проверки, а не оценка уверенности модели.</p>
         <button type="button" class="secondary" id="review-run">Найти места для проверки</button>
@@ -62,7 +64,7 @@
         <p id="benchmark-result" class="status" role="status"></p>
       </div>
       <button type="button" id="save" class="primary" disabled>Сохранить TXT в «Файлы»</button>
-      <p class="tiny">Контрольная точка содержит текст разговора и требует безопасного хранения. DOCX, автоматические говорящие и медицинский конспект пока не реализованы.</p>
+      <p class="tiny">Контрольная точка содержит текст разговора и требует безопасного хранения. DOCX и медицинский конспект пока не реализованы. Автоматическая диаризация экспериментальная и требует проверки по аудио.</p>
     </section>
     <footer><p>Без аккаунта · Без оплаты · Без загрузки аудио на GitHub. Исходная аудиозапись остаётся в выбранном вами файле.</p></footer>
   </main>
