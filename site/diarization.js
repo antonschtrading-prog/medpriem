@@ -26,12 +26,39 @@ export function speakerForWindow(start, end, turns) {
   const total = ranked.reduce((sum, entry) => sum + entry[1], 0);
   return ranked[0][1] / total >= 0.94 ? ranked[0][0] : null;
 }
+// Never silently discard words when ASR timings are absent or malformed.
 export function diarizedTranscript(segments, turns, durationSeconds, timeLabel) {
-  return segments.map((s,i) => {
+  const lines = [];
+  for (let i = 0; i < segments.length; i++) {
+    const s = segments[i];
     const start = Number(s.startSeconds);
     const end = Math.min(durationSeconds, i+1 < segments.length ? Number(segments[i+1].startSeconds) : durationSeconds);
-    const speaker = speakerForWindow(start, end, turns);
-    const label = speaker ? `Говорящий ${speaker} (автоматически, проверьте)` : 'Говорящий не определён / возможна смена голосов';
-    return `[${timeLabel(start)}] ${label}: ${String(s.text || '').trim()}`;
-  }).join('\n\n');
+    const chunks = Array.isArray(s.timedChunks) ? s.timedChunks : [];
+    const sameWords = chunks.length > 0 &&
+      chunks.every(c => typeof c.text === 'string' && Array.isArray(c.timestamp) && c.timestamp.length === 2 &&
+        Number.isFinite(c.timestamp[0]) && Number.isFinite(c.timestamp[1]) &&
+        c.timestamp[0] >= 0 && c.timestamp[1] > c.timestamp[0] && c.timestamp[1] <= (end-start)+0.5) &&
+      chunks.map(c => c.text).join('').replace(/\s+/g,'') === String(s.text || '').replace(/\s+/g,'');
+    if (sameWords) {
+      const groups = [];
+      for (const chunk of chunks) {
+        const voice = speakerForWindow(start + chunk.timestamp[0], start + chunk.timestamp[1], turns);
+        const last = groups.at(-1);
+        if (last && last.voice === voice) {
+          last.text += chunk.text;
+        } else {
+          groups.push({ voice, at: start + chunk.timestamp[0], text: chunk.text });
+        }
+      }
+      for (const group of groups) {
+        const label = group.voice ? `Говорящий ${group.voice} (автоматически, проверьте)` : 'Говорящий не определён';
+        lines.push(`[${timeLabel(group.at)}] ${label}: ${group.text.trim()}`);
+      }
+    } else {
+      const voice = speakerForWindow(start, end, turns);
+      const label = voice ? `Говорящий ${voice} (автоматически, проверьте)` : 'Говорящий не определён / возможна смена голосов';
+      lines.push(`[${timeLabel(start)}] ${label}: ${String(s.text || '').trim()}`);
+    }
+  }
+  return lines.join('\n\n');
 }
