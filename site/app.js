@@ -11,7 +11,7 @@ const el = {
   audio: $('audio-file'), fileMeta: $('file-meta'), play: $('audio-preview'),
   run: $('run'), cancel: $('cancel'), rerun: $('rerun'), save: $('save'), transcript: $('transcript'), previousTranscript: $('previous-transcript'), previousModel: $('previous-model'), comparisonBox: $('comparison-box'),
   status: $('status'), progress: $('progress'), count: $('segment-count'),
-  note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'), speakerAuto: $('speaker-auto'), speakerStatus: $('speaker-status'), speakerTurns: $('speaker-turns'), speakerExportAuto: $('speaker-export-auto'),
+  note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'), speakerAfter: $('speaker-after'), speakerAuto: $('speaker-auto'), speakerStatus: $('speaker-status'), speakerTurns: $('speaker-turns'), speakerExportAuto: $('speaker-export-auto'),
 };
 const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [] };
 
@@ -363,6 +363,11 @@ el.run.addEventListener('click', async () => {
     state.abort = null;
     // No decoded PCM is retained in application state; local browser memory is released when possible.
     updateActions();
+    if (state.complete && el.speakerAfter.checked && state.file === currentFile) {
+      // Single user action for ASR + experimental acoustic diarization.
+      // Schedule after busy state clears so the existing click handler can run.
+      queueMicrotask(() => el.speakerAuto.click());
+    }
   }
 });
 
