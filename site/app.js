@@ -3,6 +3,7 @@ import { createCheckpoint, readCheckpoint, memoryEstimateMiB } from './checkpoin
 import { cleanFilename, downloadText, exportTranscriptText } from './exports.js';
 import { resolveModel } from './model-options.js';
 import { reviewCues, benchmarkRussian } from './quality.js';
+import { repetitionAudit, preferRetry } from './hallucination.js';
 
 const $ = id => document.getElementById(id);
 const el = {
@@ -192,7 +193,28 @@ el.run.addEventListener('click', async () => {
       const range = ranges[i];
       const chunk = to16kMonoRange(decoded, range.startSample, range.endSample);
       setStatus(`Фрагмент ${i + 1} из ${ranges.length}. Выполняется локальная расшифровка…`);
-      const text = await workerRecognize(worker, { type: 'recognize', id: i, modelKey, samples: chunk }, state.abort.signal);
+      let text = await workerRecognize(worker, { type: 'recognize', id: i, modelKey, samples: chunk }, state.abort.signal);
+      const seconds = (range.endSample - range.startSample) / TARGET_SAMPLE_RATE;
+      const audit = repetitionAudit(text, seconds);
+      if (audit.suspicious) {
+        setStatus(`Подозрительный повтор на ${formatTime(range.startSeconds)}. Пробую повторное распознавание…`);
+        if (resolveModel(modelKey).family === 'whisper') {
+          // The input was transferred to the worker, so reconstruct it for one retry.
+          const retrySamples = to16kMonoRange(decoded, range.startSample, range.endSample);
+          try {
+            const second = await workerRecognize(worker, { type: 'recognize', id: `retry-${i}`, modelKey, samples: retrySamples, retry: true }, state.abort.signal);
+            const choice = preferRetry(text, second, seconds);
+            text = choice.text;
+          } catch (retryError) {
+            if (retryError?.name === 'AbortError') throw retryError;
+            // Failed retry must never stop the remaining hour-long transcription.
+          }
+        }
+        if (repetitionAudit(text, seconds).suspicious) {
+          // Retain provenance, but never silently present a hallucination as a valid utterance.
+          text = `[ТРЕБУЕТ ПРОСЛУШИВАНИЯ: подозрительное повторение на ${formatTime(range.startSeconds)}] ${text.slice(0, 200)}`;
+        }
+      }
       state.segments.push({ startSeconds: range.startSeconds, text });
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
