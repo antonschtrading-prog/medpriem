@@ -10,7 +10,7 @@ const el = {
   audio: $('audio-file'), fileMeta: $('file-meta'), play: $('audio-preview'),
   run: $('run'), cancel: $('cancel'), rerun: $('rerun'), save: $('save'), transcript: $('transcript'), previousTranscript: $('previous-transcript'), previousModel: $('previous-model'), comparisonBox: $('comparison-box'),
   status: $('status'), progress: $('progress'), count: $('segment-count'),
-  note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'),
+  note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'),
 };
 const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null };
 
@@ -33,6 +33,7 @@ function updateActions() {
   el.checkpointSave.disabled = !state.file || !state.segments.length || !state.duration;
   el.checkpointFile.disabled = state.busy || !state.file;
   el.model.disabled = state.busy;
+  el.speakerSave.disabled = !state.segments.length || state.busy;
 }
 
 let previewURL = null;
@@ -46,7 +47,7 @@ el.audio.addEventListener('change', () => {
   state.imported = null;
   state.duration = null;
   state.modelKey = null;
-  el.reviewList.replaceChildren(); el.benchmarkResult.textContent = '';
+  el.reviewList.replaceChildren(); el.speakerList.replaceChildren(); el.benchmarkResult.textContent = '';
   el.comparisonBox.hidden = true;
   el.previousTranscript.value = '';
   el.checkpointFile.value = '';
@@ -85,6 +86,7 @@ el.checkpointFile.addEventListener('change', async () => {
     state.duration = checkpoint.durationSeconds;
     state.complete = checkpoint.completed;
     el.transcript.value = buildTranscript(state.segments, !state.complete);
+    renderSpeakers();
     setProgress(checkpoint.nextIndex, Math.ceil(checkpoint.durationSeconds / CHUNK_SECONDS));
     el.note.textContent = 'Восстановлены ранее распознанные фрагменты. Ручные правки после контрольной точки в неё не входят.';
     setStatus(`Контрольная точка загружена: ${checkpoint.nextIndex} фрагментов. Нажмите «Начать расшифровку» для продолжения.`);
@@ -156,12 +158,36 @@ el.benchmarkRun.addEventListener('click', () => {
   } catch(e) { el.benchmarkResult.textContent=e.message; }
 });
 
+function renderSpeakers() {
+  el.speakerList.replaceChildren();
+  for (const [i, segment] of state.segments.entries()) {
+    const line = document.createElement('div'); line.className = 'speaker-line';
+    const jump = document.createElement('button'); jump.type = 'button'; jump.className = 'secondary'; jump.textContent = `▶ ${formatTime(segment.startSeconds)}`;
+    jump.addEventListener('click', () => { if (state.file) { el.play.currentTime = Math.max(0, segment.startSeconds - 1); el.play.play().catch(() => {}); } });
+    const select = document.createElement('select'); select.setAttribute('aria-label', `Говорящий на ${formatTime(segment.startSeconds)}`);
+    for (const [value,label] of [['', 'Не определён / несколько голосов'],['1','Говорящий 1'],['2','Говорящий 2']]) {
+      const option = document.createElement('option'); option.value=value; option.textContent=label; select.append(option);
+    }
+    select.value = segment.speaker || '';
+    select.addEventListener('change', () => { segment.speaker = select.value; });
+    const excerpt = document.createElement('span'); excerpt.className='speaker-excerpt'; excerpt.textContent=segment.text.slice(0,100);
+    line.append(jump,select,excerpt); el.speakerList.append(line);
+  }
+  el.speakerSave.disabled = !state.segments.length || state.busy;
+}
+el.speakerSave.addEventListener('click', () => {
+  if (!state.segments.length || !state.file) return;
+  const body = state.segments.map(segment => `[${formatTime(segment.startSeconds)}] ${segment.speaker ? `Говорящий ${segment.speaker} (размечено вручную)` : 'Говорящий не определён'}: ${segment.text}`).join('\n\n');
+  downloadText(exportTranscriptText({fileName:state.file.name,text:body,partial:!state.complete}), `${cleanFilename(state.file.name)}_говорящие_ручная_разметка.txt`);
+});
+
 el.rerun.addEventListener('click', () => {
   if (!state.file || state.busy || !state.segments.length || !el.privacy.checked) return;
   el.previousTranscript.value = el.transcript.value;
   el.previousModel.textContent = `Предыдущая модель: ${state.modelKey || 'неизвестно'}. Это отдельный результат того же файла.`;
   el.comparisonBox.hidden = false;
   state.segments = [];
+  renderSpeakers();
   state.complete = false;
   state.imported = null;
   state.duration = null;
@@ -187,7 +213,7 @@ el.run.addEventListener('click', async () => {
   state.busy = true;
   const resume = state.imported || (state.segments.length && state.duration && !wasComplete ? { nextIndex: state.segments.length, durationSeconds: state.duration } : null);
   state.complete = false;
-  if (!resume) { state.segments = []; el.transcript.value = ''; setProgress(0, 0); }
+  if (!resume) { state.segments = []; renderSpeakers(); el.transcript.value = ''; setProgress(0, 0); }
   state.abort = new AbortController();
   el.note.textContent = '';
   updateActions();
@@ -237,6 +263,7 @@ el.run.addEventListener('click', async () => {
         }
       }
       state.segments.push({ startSeconds: range.startSeconds, text });
+      renderSpeakers();
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
       if ((i + 1) % 12 === 0) el.note.textContent = 'Для защиты прогресса сохраните контрольную точку прямо сейчас. Кнопка доступна во время обработки.';
