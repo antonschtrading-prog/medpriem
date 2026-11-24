@@ -10,7 +10,7 @@
 </head>
 <body>
   <main class="shell">
-    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Прототип 0.3</span></header>
+    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Прототип 0.4</span></header>
     <section class="hero">
       <p class="eyebrow">ЭКСПЕРИМЕНТАЛЬНЫЙ РЕЖИМ</p>
       <h2>Расшифруйте запись приёма без сервера и подписок</h2>
@@ -27,9 +27,9 @@
     <section class="panel" aria-labelledby="step2"><span class="number">02</span><h3 id="step2">Распознать русский разговор</h3>
       <p class="muted">Распознаём только русский язык. Доступны многоязычные модели Whisper: сначала проверьте короткий фрагмент, затем сравните точность. Большие модели требуют больше памяти и времени.</p>
       <label class="setting" for="asr-model">Модель распознавания
-        <select id="asr-model"><option value="tiny">Tiny · быстрый тест</option><option value="base" selected>Base · приоритет точности</option><option value="small">Small · только на мощном устройстве</option></select>
+        <select id="asr-model"><option value="tiny">Tiny · быстрый тест</option><option value="base" selected>Base · приоритет точности</option><option value="small">Small · только на мощном устройстве</option><option value="xlsr_ru">Wav2Vec2 XLSR · русский · экспериментально</option><option value="medium">Whisper Medium · крайне тяжёлая · экспериментально</option></select>
       </label>
-      <p class="tiny">На iPhone сначала проверяйте Tiny или Base на 30–60 секундах. Small может не запуститься из-за памяти. Разные модели не смешиваются в одной контрольной точке.</p>
+      <p class="tiny">Новая русскоязычная Wav2Vec2 XLSR — отдельное семейство распознавания; Whisper Medium особенно тяжёлая. Обе новые модели пока не проверены на реальном Safari. На iPhone начинайте с Base. При зацикливании Whisper программа автоматически пробует повторно распознать фрагмент, а нерешённый участок отмечает для прослушивания.</p>
       <label class="consent"><input type="checkbox" id="privacy-agree"><span>Это тестовая запись без реальных данных пациента. Понимаю, что модель и библиотека загружаются из внешних источников.</span></label>
       <div class="actions"><button type="button" id="run" class="primary" disabled>Начать расшифровку</button><button type="button" id="cancel" class="secondary" disabled>Остановить</button></div>
       <div class="progress-wrap"><progress id="progress" max="100" value="0" aria-label="Прогресс расшифровки"></progress><span id="segment-count" class="tiny"></span></div>
@@ -46,7 +46,7 @@
       <textarea id="transcript" spellcheck="true" placeholder="Здесь появится расшифровка. Её можно исправлять вручную." aria-label="Текст расшифровки"></textarea>
       <p id="note" class="tiny" aria-live="polite"></p>
       <div class="review-box"><h4>Проверка медицинских фрагментов</h4>
-        <p class="tiny">Числа, дозы и термины автоматически не исправляются. Нажмите на отметку, чтобы прослушать соответствующий фрагмент оригинальной записи. Это подсказки для проверки, а не оценка уверенности модели.</p>
+        <p class="tiny">Зацикленные фрагменты помечаются для обязательного прослушивания. Числа, дозы и термины автоматически не исправляются. Нажмите на отметку, чтобы прослушать соответствующий фрагмент оригинальной записи. Это подсказки для проверки, а не оценка уверенности модели.</p>
         <button type="button" class="secondary" id="review-run">Найти места для проверки</button>
         <ul id="review-list" class="review-list" aria-live="polite"></ul>
       </div>
