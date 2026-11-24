@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0e2530">
+  <meta name="description" content="МедПриём: экспериментальная локальная расшифровка аудиозаписей в браузере.">
+  <title>МедПриём · Расшифровка аудио</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Прототип 0.3</span></header>
+    <section class="hero">
+      <p class="eyebrow">ЭКСПЕРИМЕНТАЛЬНЫЙ РЕЖИМ</p>
+      <h2>Расшифруйте запись приёма без сервера и подписок</h2>
+      <p>Выберите запись из «Файлов» или «Диктофона». Программа работает в браузере; распознавание выполняет устройство, на котором открыт сайт.</p>
+      <div class="security">Для первого испытания используйте <strong>только вымышленный или обезличенный разговор</strong>. Защита клинических данных и качество распознавания пока не подтверждены.</div>
+    </section>
+    <section class="panel" aria-labelledby="step1"><span class="number">01</span><h3 id="step1">Загрузить аудиофайл</h3>
+      <label class="filepick" for="audio-file">Выбрать аудио (M4A, MP3, WAV)</label>
+      <input type="file" id="audio-file" accept="audio/*,.m4a,.mp3,.wav,.mp4" aria-describedby="file-meta">
+      <p id="file-meta" class="muted">Файл не выбран</p><p id="memory-warning" class="tiny" role="status"></p>
+      <audio id="audio-preview" controls preload="none" hidden></audio>
+      <p class="tiny">Поддерживается экспериментальная обработка до 60 минут. Длинный файл целиком декодируется браузером: особенно на iPhone возможны нехватка памяти и остановка. Сначала проверьте короткую запись.</p>
+    </section>
+    <section class="panel" aria-labelledby="step2"><span class="number">02</span><h3 id="step2">Распознать русский разговор</h3>
+      <p class="muted">Распознаём только русский язык. Доступны многоязычные модели Whisper: сначала проверьте короткий фрагмент, затем сравните точность. Большие модели требуют больше памяти и времени.</p>
+      <label class="setting" for="asr-model">Модель распознавания
+        <select id="asr-model"><option value="tiny">Tiny · быстрый тест</option><option value="base" selected>Base · приоритет точности</option><option value="small">Small · только на мощном устройстве</option></select>
+      </label>
+      <p class="tiny">На iPhone сначала проверяйте Tiny или Base на 30–60 секундах. Small может не запуститься из-за памяти. Разные модели не смешиваются в одной контрольной точке.</p>
+      <label class="consent"><input type="checkbox" id="privacy-agree"><span>Это тестовая запись без реальных данных пациента. Понимаю, что модель и библиотека загружаются из внешних источников.</span></label>
+      <div class="actions"><button type="button" id="run" class="primary" disabled>Начать расшифровку</button><button type="button" id="cancel" class="secondary" disabled>Остановить</button></div>
+      <div class="progress-wrap"><progress id="progress" max="100" value="0" aria-label="Прогресс расшифровки"></progress><span id="segment-count" class="tiny"></span></div>
+      <p id="status" class="status" role="status" aria-live="polite">Ожидание аудиофайла.</p>
+      <div class="checkpoint"><h4>Продолжить после сбоя</h4>
+        <p class="tiny">Контрольная точка сохраняется только в скачиваемый файл, не в облако и не в память сайта. Сохраняйте её после каждых 5 минут распознавания, даже пока идёт обработка. Для продолжения выберите ту же аудиозапись, затем импортируйте этот файл.</p>
+        <button type="button" id="checkpoint-save" class="secondary" disabled>Сохранить контрольную точку</button>
+        <label class="filepick compact" for="checkpoint-file">Загрузить контрольную точку</label>
+        <input type="file" id="checkpoint-file" accept=".json,.medpriem.json,application/json">
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="step3"><span class="number">03</span><h3 id="step3">Проверить и сохранить текст</h3>
+      <p class="muted">Таймкоды соответствуют началу фрагментов; границы реплик могут не совпадать. Автоматического разделения врача и пациента пока нет.</p>
+      <textarea id="transcript" spellcheck="true" placeholder="Здесь появится расшифровка. Её можно исправлять вручную." aria-label="Текст расшифровки"></textarea>
+      <p id="note" class="tiny" aria-live="polite"></p>
+      <div class="review-box"><h4>Проверка медицинских фрагментов</h4>
+        <p class="tiny">Числа, дозы и термины автоматически не исправляются. Нажмите на отметку, чтобы прослушать соответствующий фрагмент оригинальной записи. Это подсказки для проверки, а не оценка уверенности модели.</p>
+        <button type="button" class="secondary" id="review-run">Найти места для проверки</button>
+        <ul id="review-list" class="review-list" aria-live="polite"></ul>
+      </div>
+      <div class="review-box"><h4>Измерить точность по эталону</h4>
+        <p class="tiny">Для тестовой вымышленной записи вставьте вручную проверенный русский текст. WER = доля ошибок в словах, CER = в символах; отдельно проверяем совпадение чисел и десятичных дозировок. Меньше — лучше. Сравнивать разные модели нужно на одном и том же аудио. Оценка ограничена отрывком до 1500 слов для защиты памяти телефона.</p>
+        <textarea id="reference" placeholder="Эталонная расшифровка тестового разговора" aria-label="Эталонный текст для оценки точности"></textarea>
+        <button type="button" class="secondary" id="benchmark-run">Сравнить с эталоном</button>
+        <p id="benchmark-result" class="status" role="status"></p>
+      </div>
+      <button type="button" id="save" class="primary" disabled>Сохранить TXT в «Файлы»</button>
+      <p class="tiny">Контрольная точка содержит текст разговора и требует безопасного хранения. DOCX, автоматические говорящие и медицинский конспект пока не реализованы.</p>
+    </section>
+    <footer><p>Без аккаунта · Без оплаты · Без загрузки аудио на GitHub. Исходная аудиозапись остаётся в выбранном вами файле.</p></footer>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
