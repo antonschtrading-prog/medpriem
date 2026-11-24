@@ -226,7 +226,7 @@ el.speakerExportAuto.addEventListener('click', () => {
   if (!state.turns.length || !state.file || !state.segments.length) return;
   const duration = state.duration || Math.max(...state.turns.map(t => t.endSeconds));
   const body = diarizedTranscript(state.segments, state.turns, duration, formatTime);
-  downloadText(exportTranscriptText({fileName:state.file.name,text:body,partial:!state.complete}), `${cleanFilename(state.file.name)}_говорящие_автоматически.txt`);
+  downloadText(exportTranscriptText({fileName:state.file.name,text:body,partial:!state.complete,speakersDetected:true}), `${cleanFilename(state.file.name)}_говорящие_автоматически.txt`);
 });
 
 function renderSpeakers() {
