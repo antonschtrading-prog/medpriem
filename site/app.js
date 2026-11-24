@@ -8,7 +8,7 @@ import { repetitionAudit, preferRetry } from './hallucination.js';
 const $ = id => document.getElementById(id);
 const el = {
   audio: $('audio-file'), fileMeta: $('file-meta'), play: $('audio-preview'),
-  run: $('run'), cancel: $('cancel'), save: $('save'), transcript: $('transcript'),
+  run: $('run'), cancel: $('cancel'), rerun: $('rerun'), save: $('save'), transcript: $('transcript'), previousTranscript: $('previous-transcript'), previousModel: $('previous-model'), comparisonBox: $('comparison-box'),
   status: $('status'), progress: $('progress'), count: $('segment-count'),
   note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'),
 };
@@ -26,6 +26,7 @@ function setProgress(done, total) {
 function updateActions() {
   el.run.disabled = !state.file || state.busy || !el.privacy.checked;
   el.cancel.disabled = !state.busy;
+  el.rerun.disabled = !state.file || state.busy || !state.segments.length || !el.privacy.checked;
   el.save.disabled = !el.transcript.value.trim();
   el.audio.disabled = state.busy;
   el.privacy.disabled = state.busy;
@@ -46,6 +47,8 @@ el.audio.addEventListener('change', () => {
   state.duration = null;
   state.modelKey = null;
   el.reviewList.replaceChildren(); el.benchmarkResult.textContent = '';
+  el.comparisonBox.hidden = true;
+  el.previousTranscript.value = '';
   el.checkpointFile.value = '';
   el.memory.textContent = file && file.size > 30_000_000 ? 'Большой аудиофайл: браузер может расходовать сотни мегабайт памяти при декодировании. Экспортируйте контрольные точки в процессе обработки.' : '';
   el.transcript.value = '';
@@ -151,6 +154,23 @@ el.benchmarkRun.addEventListener('click', () => {
     const result=benchmarkRussian(el.reference.value,el.transcript.value);
     el.benchmarkResult.textContent=`WER ${(100*result.wer).toFixed(1)}% (${result.wordErrors} ошибок на ${result.referenceWords} слов); CER ${(100*result.cer).toFixed(1)}% (${result.characterErrors} ошибок на ${result.referenceChars} символов). Расхождений чисел: ${result.numericErrors} (эталон: ${result.numericReference.join(', ') || 'нет'}; результат: ${result.numericRecognized.join(', ') || 'нет'}). Это тестовая оценка, не клиническая гарантия.`;
   } catch(e) { el.benchmarkResult.textContent=e.message; }
+});
+
+el.rerun.addEventListener('click', () => {
+  if (!state.file || state.busy || !state.segments.length || !el.privacy.checked) return;
+  el.previousTranscript.value = el.transcript.value;
+  el.previousModel.textContent = `Предыдущая модель: ${state.modelKey || 'неизвестно'}. Это отдельный результат того же файла.`;
+  el.comparisonBox.hidden = false;
+  state.segments = [];
+  state.complete = false;
+  state.imported = null;
+  state.duration = null;
+  state.modelKey = null;
+  el.transcript.value = '';
+  el.note.textContent = 'Предыдущий результат сохранён для сравнения в этой вкладке. Запускаю новый проход…';
+  setProgress(0, 0);
+  updateActions();
+  el.run.click();
 });
 
 el.run.addEventListener('click', async () => {
