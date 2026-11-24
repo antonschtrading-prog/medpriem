@@ -123,7 +123,7 @@ function workerRecognize(worker, data, signal) {
       } else if (msg.type === 'engine-state') {
         if (msg.state === 'running') setStatus('Распознаю речь непосредственно на этом устройстве…');
       } else if (msg.id === data.id && msg.type === 'recognized') {
-        cleanup(); resolve(msg.text);
+        cleanup(); resolve({ text: msg.text, chunks: msg.chunks || [] });
       } else if (msg.id === data.id && msg.type === 'error') {
         cleanup(); reject(new Error(msg.message));
       }
@@ -312,7 +312,9 @@ el.run.addEventListener('click', async () => {
       const range = ranges[i];
       const chunk = to16kMonoRange(decoded, range.startSample, range.endSample);
       setStatus(`Фрагмент ${i + 1} из ${ranges.length}. Выполняется локальная расшифровка…`);
-      let text = await workerRecognize(worker, { type: 'recognize', id: i, modelKey, samples: chunk }, state.abort.signal);
+      const firstResult = await workerRecognize(worker, { type: 'recognize', id: i, modelKey, samples: chunk }, state.abort.signal);
+      let text = firstResult.text;
+      let timedChunks = firstResult.chunks;
       const seconds = (range.endSample - range.startSample) / TARGET_SAMPLE_RATE;
       const audit = repetitionAudit(text, seconds);
       if (audit.suspicious) {
@@ -322,8 +324,9 @@ el.run.addEventListener('click', async () => {
           const retrySamples = to16kMonoRange(decoded, range.startSample, range.endSample);
           try {
             const second = await workerRecognize(worker, { type: 'recognize', id: `retry-${i}`, modelKey, samples: retrySamples, retry: true }, state.abort.signal);
-            const choice = preferRetry(text, second, seconds);
+            const choice = preferRetry(text, second.text, seconds);
             text = choice.text;
+            if (choice.improved) timedChunks = second.chunks;
           } catch (retryError) {
             if (retryError?.name === 'AbortError') throw retryError;
             // Failed retry must never stop the remaining hour-long transcription.
@@ -334,7 +337,7 @@ el.run.addEventListener('click', async () => {
           text = `[ТРЕБУЕТ ПРОСЛУШИВАНИЯ: подозрительное повторение на ${formatTime(range.startSeconds)}] ${text.slice(0, 200)}`;
         }
       }
-      state.segments.push({ startSeconds: range.startSeconds, text });
+      state.segments.push({ startSeconds: range.startSeconds, text, timedChunks });
       renderSpeakers();
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
