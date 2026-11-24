@@ -1,18 +1,19 @@
-import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMonoRange, validateAudioBuffer } from './audio.js';
+import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
 import { createCheckpoint, readCheckpoint, memoryEstimateMiB } from './checkpoint.js';
 import { cleanFilename, downloadText, exportTranscriptText } from './exports.js';
 import { resolveModel } from './model-options.js';
 import { reviewCues, benchmarkRussian } from './quality.js';
 import { repetitionAudit, preferRetry } from './hallucination.js';
+import { normalizeSpeakerTurns, diarizedTranscript } from './diarization.js';
 
 const $ = id => document.getElementById(id);
 const el = {
   audio: $('audio-file'), fileMeta: $('file-meta'), play: $('audio-preview'),
   run: $('run'), cancel: $('cancel'), rerun: $('rerun'), save: $('save'), transcript: $('transcript'), previousTranscript: $('previous-transcript'), previousModel: $('previous-model'), comparisonBox: $('comparison-box'),
   status: $('status'), progress: $('progress'), count: $('segment-count'),
-  note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'),
+  note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'), speakerAuto: $('speaker-auto'), speakerStatus: $('speaker-status'), speakerTurns: $('speaker-turns'), speakerExportAuto: $('speaker-export-auto'),
 };
-const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null };
+const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [] };
 
 function setStatus(message, isError = false) {
   el.status.textContent = message;
@@ -34,6 +35,8 @@ function updateActions() {
   el.checkpointFile.disabled = state.busy || !state.file;
   el.model.disabled = state.busy;
   el.speakerSave.disabled = !state.segments.length || state.busy;
+  el.speakerAuto.disabled = !state.file || state.busy || state.diarizationBusy || !state.segments.length || !el.privacy.checked;
+  el.speakerExportAuto.disabled = !state.turns.length || state.busy || state.diarizationBusy;
 }
 
 let previewURL = null;
@@ -47,6 +50,7 @@ el.audio.addEventListener('change', () => {
   state.imported = null;
   state.duration = null;
   state.modelKey = null;
+  state.turns = []; el.speakerStatus.textContent = ''; el.speakerTurns.replaceChildren();
   el.reviewList.replaceChildren(); el.speakerList.replaceChildren(); el.benchmarkResult.textContent = '';
   el.comparisonBox.hidden = true;
   el.previousTranscript.value = '';
@@ -86,6 +90,7 @@ el.checkpointFile.addEventListener('change', async () => {
     state.duration = checkpoint.durationSeconds;
     state.complete = checkpoint.completed;
     el.transcript.value = buildTranscript(state.segments, !state.complete);
+    state.turns = []; el.speakerTurns.replaceChildren(); el.speakerStatus.textContent = '';
     renderSpeakers();
     setProgress(checkpoint.nextIndex, Math.ceil(checkpoint.durationSeconds / CHUNK_SECONDS));
     el.note.textContent = 'Восстановлены ранее распознанные фрагменты. Ручные правки после контрольной точки в неё не входят.';
@@ -158,6 +163,72 @@ el.benchmarkRun.addEventListener('click', () => {
   } catch(e) { el.benchmarkResult.textContent=e.message; }
 });
 
+
+function showAutomaticTurns() {
+  el.speakerTurns.replaceChildren();
+  for (const turn of state.turns) {
+    const line = document.createElement('div'); line.className = 'speaker-line';
+    const play = document.createElement('button'); play.className = 'secondary'; play.type='button';
+    play.textContent = `▶ ${formatTime(turn.startSeconds)}–${formatTime(turn.endSeconds)}`;
+    play.addEventListener('click', () => {
+      if (!state.file) return;
+      el.play.currentTime = turn.startSeconds;
+      el.play.play().catch(() => {});
+    });
+    const label = document.createElement('strong'); label.textContent = `Говорящий ${turn.speaker}`;
+    line.append(play, label); el.speakerTurns.append(line);
+  }
+}
+
+el.speakerAuto.addEventListener('click', async () => {
+  if (!state.file || !state.segments.length || state.busy || state.diarizationBusy || !el.privacy.checked) return;
+  state.diarizationBusy = true;
+  state.turns = [];
+  el.speakerTurns.replaceChildren();
+  el.speakerStatus.textContent = 'Загружаю звук для локального определения голосов…';
+  updateActions();
+  let worker;
+  try {
+    const decoded = await decodeAudio(state.file);
+    validateAudioBuffer(decoded);
+    const length = decoded.duration;
+    if (length > 1200) {
+      el.speakerStatus.textContent = 'Длинная запись: для анализа голосов понадобится дополнительная память и загрузка модели. На телефоне возможна остановка вкладки.';
+    }
+    const samples = to16kMono(decoded);
+    worker = new Worker('./diarization-worker.js'); // Classic worker required by Emscripten.
+    state.diarizationWorker = worker;
+    const raw = await new Promise((resolve,reject) => {
+      worker.onerror = event => reject(new Error(event.message || 'Ошибка запуска движка голосов.'));
+      worker.onmessage = ({ data }) => {
+        if (data.id !== 1) return;
+        if (data.type === 'diarization-progress') el.speakerStatus.textContent = data.message;
+        if (data.type === 'diarization-result') resolve(data.segments);
+        if (data.type === 'diarization-error') reject(new Error(data.message));
+      };
+      worker.postMessage({ type:'diarize', id:1, samples }, [samples.buffer]);
+    });
+    state.turns = normalizeSpeakerTurns(raw, length);
+    if (!state.turns.length) throw new Error('Модель не нашла уверенно распознанных голосовых интервалов. Разметка не создана.');
+    showAutomaticTurns();
+    el.speakerStatus.textContent = `Найдено ${state.turns.length} временных интервалов; различимых голосов: ${new Set(state.turns.map(t => t.speaker)).size}. Это автоматические гипотезы, их нужно проверить по записи.`;
+  } catch (error) {
+    state.turns = [];
+    el.speakerStatus.textContent = `Автоматическое разделение не завершено: ${error instanceof Error ? error.message : String(error)}. Основная расшифровка сохранена.`;
+  } finally {
+    worker?.terminate();
+    state.diarizationWorker = null;
+    state.diarizationBusy = false;
+    updateActions();
+  }
+});
+el.speakerExportAuto.addEventListener('click', () => {
+  if (!state.turns.length || !state.file || !state.segments.length) return;
+  const duration = state.duration || Math.max(...state.turns.map(t => t.endSeconds));
+  const body = diarizedTranscript(state.segments, state.turns, duration, formatTime);
+  downloadText(exportTranscriptText({fileName:state.file.name,text:body,partial:!state.complete}), `${cleanFilename(state.file.name)}_говорящие_автоматически.txt`);
+});
+
 function renderSpeakers() {
   el.speakerList.replaceChildren();
   for (const [i, segment] of state.segments.entries()) {
@@ -187,6 +258,7 @@ el.rerun.addEventListener('click', () => {
   el.previousModel.textContent = `Предыдущая модель: ${state.modelKey || 'неизвестно'}. Это отдельный результат того же файла.`;
   el.comparisonBox.hidden = false;
   state.segments = [];
+  state.turns = []; el.speakerTurns.replaceChildren(); el.speakerStatus.textContent = '';
   renderSpeakers();
   state.complete = false;
   state.imported = null;
@@ -213,7 +285,7 @@ el.run.addEventListener('click', async () => {
   state.busy = true;
   const resume = state.imported || (state.segments.length && state.duration && !wasComplete ? { nextIndex: state.segments.length, durationSeconds: state.duration } : null);
   state.complete = false;
-  if (!resume) { state.segments = []; renderSpeakers(); el.transcript.value = ''; setProgress(0, 0); }
+  if (!resume) { state.segments = []; state.turns = []; el.speakerTurns.replaceChildren(); el.speakerStatus.textContent=''; renderSpeakers(); el.transcript.value = ''; setProgress(0, 0); }
   state.abort = new AbortController();
   el.note.textContent = '';
   updateActions();
