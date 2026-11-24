@@ -182,10 +182,11 @@ el.run.addEventListener('click', async () => {
     setStatus('Нельзя продолжать расшифровку другой моделью: выберите прежнюю модель или заново загрузите файл.', true);
     return;
   }
+  const wasComplete = state.complete;
   state.modelKey = modelKey;
   state.busy = true;
+  const resume = state.imported || (state.segments.length && state.duration && !wasComplete ? { nextIndex: state.segments.length, durationSeconds: state.duration } : null);
   state.complete = false;
-  const resume = state.imported || (state.segments.length && state.duration && !state.complete ? { nextIndex: state.segments.length, durationSeconds: state.duration } : null);
   if (!resume) { state.segments = []; el.transcript.value = ''; setProgress(0, 0); }
   state.abort = new AbortController();
   el.note.textContent = '';
