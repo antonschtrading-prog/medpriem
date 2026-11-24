@@ -1,9 +1,7 @@
-// Inference executes in this Web Worker on the user's device.
-// This first prototype downloads free model weights and library code from trusted public hosts.
-// It MUST NOT be used for identifiable patient recordings until dependencies are self-hosted,
-// egress is locked down, and privacy/legal testing is complete.
-const ENGINE_VERSION = '3.8.1';
+// Browser-only inference. Do not use identifiable patient recordings until third-party
+// scripts/weights are self-hosted, audited, and network egress is restricted.
 import { resolveModel } from './model-options.js';
+const ENGINE_VERSION = '3.8.1';
 let transcriber = null;
 let loadedModelKey = null;
 let busy = false;
@@ -13,12 +11,12 @@ async function init(modelKey) {
   const model = resolveModel(modelKey);
   if (transcriber?.dispose) await transcriber.dispose();
   transcriber = null;
+  loadedModelKey = null;
   const { pipeline } = await import(`https://cdn.jsdelivr.net/npm/@huggingface/transformers@${ENGINE_VERSION}`);
   transcriber = await pipeline('automatic-speech-recognition', model.id, {
-    device: 'wasm',
-    dtype: 'q8',
+    device: 'wasm', dtype: 'q8',
     progress_callback: info => {
-      if (info && info.status === 'progress') self.postMessage({ type: 'model-progress', file: info.file || '', progress: info.progress || 0 });
+      if (info?.status === 'progress') self.postMessage({ type: 'model-progress', file: info.file || '', progress: info.progress || 0 });
     },
   });
   loadedModelKey = modelKey;
@@ -33,10 +31,16 @@ self.onmessage = async ({ data }) => {
     if (!(samples instanceof Float32Array) || samples.length < 8000 || samples.length > 16000 * 30) {
       throw new Error('Неверный аудиофрагмент (допустимо от 0,5 до 30 секунд).');
     }
+    const model = resolveModel(data.modelKey ?? 'base');
     self.postMessage({ type: 'engine-state', state: 'loading' });
-    const pipe = await init(data.modelKey ?? 'tiny');
+    const pipe = await init(data.modelKey ?? 'base');
     self.postMessage({ type: 'engine-state', state: 'running' });
-    const result = await pipe(samples, { language: 'russian', task: 'transcribe', return_timestamps: false });
+    // CTC models do not support Whisper's language/task/decoding generation options.
+    const options = model.family === 'whisper'
+      ? { language: 'russian', task: 'transcribe', return_timestamps: false,
+          ...(data.retry ? { no_repeat_ngram_size: 4, repetition_penalty: 1.12, max_new_tokens: 160 } : {}) }
+      : {};
+    const result = await pipe(samples, options);
     self.postMessage({ type: 'recognized', id: data.id, text: result?.text || '' });
   } catch (error) {
     self.postMessage({ type: 'error', id: data?.id, message: error instanceof Error ? error.message : String(error) });
