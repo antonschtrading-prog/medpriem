@@ -14,8 +14,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    name: Russian ASR quality regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check
+      - run: npm test
   deploy:
     name: Deploy static test site
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -33,6 +44,7 @@ jobs:
           test -s site/asr-worker.js
           test -s site/model-options.js
           test -s site/quality.js
+          test -s site/hallucination.js
           echo "Static MedPriem release files found"
       - name: Upload release
         uses: actions/upload-pages-artifact@v3
