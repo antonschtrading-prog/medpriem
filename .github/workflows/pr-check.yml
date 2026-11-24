@@ -1,0 +1,26 @@
+name: Verify MedPriem pull request
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: JavaScript syntax and regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check
+      - run: npm test
+      - name: Check browser entry points
+        run: |
+          test -s site/diarization.js
+          test -s site/diarization-worker.js
+          grep -q 'speaker-auto' site/index.html
+          grep -q 'diarization-worker.js' site/app.js
