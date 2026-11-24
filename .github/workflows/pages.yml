@@ -1,28 +1,43 @@
-name: Publish test MedPriem to GitHub Pages
+name: Publish MedPriem test site
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 concurrency:
-  group: pages
+  group: medpriem-pages
   cancel-in-progress: true
+
 jobs:
   deploy:
+    name: Deploy static test site
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure already enabled GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Validate release files
+        shell: bash
+        run: |
+          test -s site/index.html
+          test -s site/app.js
+          test -s site/asr-worker.js
+          test -s site/model-options.js
+          test -s site/quality.js
+          echo "Static MedPriem release files found"
+      - name: Upload release
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./site
-      - id: deploy
+      - name: Deploy
+        id: deploy
         uses: actions/deploy-pages@v4
