@@ -45,6 +45,9 @@ jobs:
           test -s site/model-options.js
           test -s site/quality.js
           test -s site/hallucination.js
+          test -s site/preview-v06/index.html
+          test -s site/preview-v06/app.js
+          test -s site/preview-v06/preflight.js
           echo "Static MedPriem release files found"
       - name: Upload release
         uses: actions/upload-pages-artifact@v3
