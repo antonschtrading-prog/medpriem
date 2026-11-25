@@ -3,7 +3,7 @@ import { resolveModel } from './model-options.js';
 import { checkSileroRuntime } from './silero-segmentation.js';
 
 export async function checkModelManifest(modelKey, fetcher = fetch) {
-  const { id } = resolveModel(modelKey);
+  const { id, family } = resolveModel(modelKey);
   const url = 'https://huggingface.co/' + id + '/resolve/main/config.json';
   const response = await fetcher(url, { method: 'GET', cache: 'no-store' });
   if (!response.ok) throw new Error('Модель недоступна: HTTP ' + response.status);
@@ -18,8 +18,10 @@ export async function checkModelManifest(modelKey, fetcher = fetch) {
   const paths = Array.isArray(files) ? files.map(f => String(f.path || '').split('/').pop()) : [];
   const encoder = paths.some(name => /^encoder_model_(quantized|int8|uint8)\.onnx$/.test(name));
   const decoder = paths.some(name => /^decoder_model(_merged)?_(quantized|int8|uint8)\.onnx$/.test(name));
-  const q8Ready = encoder && decoder;
-  return { id, type: config.model_type, q8Ready, encoder, decoder };
+  // CTC exports contain one acoustic model, not Whisper's encoder/decoder pair.
+  const singleModel = paths.some(name => /^model_(quantized|int8|uint8)\.onnx$/.test(name));
+  const q8Ready = family === 'ctc' ? singleModel : encoder && decoder;
+  return { id, type: config.model_type, family, q8Ready, encoder, decoder, singleModel };
 }
 
 export async function runEnginePreflight(modelKey, update = () => {}) {
@@ -35,7 +37,7 @@ export async function runEnginePreflight(modelKey, update = () => {}) {
   try {
     const result = await checkModelManifest(modelKey);
     checks.push({ name: 'ASR: конфигурация и q8 ONNX', ok: result.q8Ready,
-      details: result.id + ', тип ' + result.type + ', q8 encoder=' + result.encoder + ', decoder=' + result.decoder + '. Реальное распознавание НЕ проверено.' });
+      details: result.id + ', тип ' + result.type + (result.family === 'ctc' ? ', q8 CTC model=' + result.singleModel : ', q8 encoder=' + result.encoder + ', decoder=' + result.decoder) + '. Реальное распознавание НЕ проверено.' });
   } catch (error) {
     checks.push({ name: 'ASR: конфигурация и q8 ONNX', ok: false, details: String(error?.message || error) });
   }
