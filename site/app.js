@@ -1,4 +1,6 @@
 import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
+import { pauseAwareRanges } from './pause-segmentation.js';
+import { createPauseCheckpoint, readPauseCheckpoint } from './pause-checkpoint.js';
 import { createCheckpoint, readCheckpoint, memoryEstimateMiB } from './checkpoint.js';
 import { cleanFilename, downloadText, exportTranscriptText } from './exports.js';
 import { resolveModel } from './model-options.js';
@@ -13,7 +15,7 @@ const el = {
   status: $('status'), progress: $('progress'), count: $('segment-count'),
   note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'), speakerAfter: $('speaker-after'), speakerAuto: $('speaker-auto'), speakerStatus: $('speaker-status'), speakerTurns: $('speaker-turns'), speakerExportAuto: $('speaker-export-auto'),
 };
-const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [] };
+const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [], ranges: [], legacyFixed: false };
 
 function setStatus(message, isError = false) {
   el.status.textContent = message;
@@ -50,6 +52,7 @@ el.audio.addEventListener('change', () => {
   state.imported = null;
   state.duration = null;
   state.modelKey = null;
+  state.ranges = []; state.legacyFixed = false;
   state.turns = []; el.speakerStatus.textContent = ''; el.speakerTurns.replaceChildren();
   el.reviewList.replaceChildren(); el.speakerList.replaceChildren(); el.benchmarkResult.textContent = '';
   el.comparisonBox.hidden = true;
@@ -72,7 +75,7 @@ el.transcript.addEventListener('input', updateActions);
 el.checkpointSave.addEventListener('click', () => {
   if (!state.file || !state.segments.length || !state.duration) return;
   try {
-    const checkpoint = createCheckpoint({ file: state.file, segments: state.segments, durationSeconds: state.duration, chunkSeconds: CHUNK_SECONDS, completed: state.complete, modelKey: state.modelKey ?? el.model.value });
+    const checkpoint = state.legacyFixed ? createCheckpoint({ file: state.file, segments: state.segments, durationSeconds: state.duration, chunkSeconds: CHUNK_SECONDS, completed: state.complete, modelKey: state.modelKey ?? el.model.value }) : createPauseCheckpoint({ file: state.file, segments: state.segments, durationSeconds: state.duration, ranges: state.ranges, completed: state.complete, modelKey: state.modelKey ?? el.model.value });
     downloadText(JSON.stringify(checkpoint, null, 2), `${cleanFilename(state.file.name)}_контрольная_точка.medpriem.json`);
     setStatus('Контрольная точка подготовлена для сохранения. Файл содержит текст разговора, храните его конфиденциально.');
   } catch (error) { setStatus(error.message, true); }
@@ -81,8 +84,13 @@ el.checkpointFile.addEventListener('change', async () => {
   const file = el.checkpointFile.files?.[0];
   if (!file || !state.file || state.busy) return;
   try {
-    const checkpoint = readCheckpoint(await file.text(), state.file);
-    if (checkpoint.chunkSeconds !== CHUNK_SECONDS) throw new Error('Другая длительность фрагментов, продолжение невозможно.');
+    const checkpointText = await file.text();
+    const meta = JSON.parse(checkpointText);
+    const legacyFixed = meta.version === 1;
+    const checkpoint = legacyFixed ? readCheckpoint(checkpointText, state.file) : readPauseCheckpoint(checkpointText, state.file);
+    if (legacyFixed && checkpoint.chunkSeconds !== CHUNK_SECONDS) throw new Error('Другая длительность старых фрагментов, продолжение невозможно.');
+    state.legacyFixed = legacyFixed;
+    state.ranges = legacyFixed ? [] : checkpoint.ranges;
     el.model.value = checkpoint.modelKey;
     state.modelKey = checkpoint.modelKey;
     state.imported = checkpoint;
@@ -92,7 +100,7 @@ el.checkpointFile.addEventListener('change', async () => {
     el.transcript.value = buildTranscript(state.segments, !state.complete);
     state.turns = []; el.speakerTurns.replaceChildren(); el.speakerStatus.textContent = '';
     renderSpeakers();
-    setProgress(checkpoint.nextIndex, Math.ceil(checkpoint.durationSeconds / CHUNK_SECONDS));
+    setProgress(checkpoint.nextIndex, legacyFixed ? Math.ceil(checkpoint.durationSeconds / CHUNK_SECONDS) : checkpoint.ranges.length);
     el.note.textContent = 'Восстановлены ранее распознанные фрагменты. Ручные правки после контрольной точки в неё не входят.';
     setStatus(`Контрольная точка загружена: ${checkpoint.nextIndex} фрагментов. Нажмите «Начать расшифровку» для продолжения.`);
   } catch (error) {
@@ -263,6 +271,7 @@ el.rerun.addEventListener('click', () => {
   state.complete = false;
   state.imported = null;
   state.duration = null;
+  state.ranges = []; state.legacyFixed = false;
   state.modelKey = null;
   el.transcript.value = '';
   el.note.textContent = 'Предыдущий результат сохранён для сравнения в этой вкладке. Запускаю новый проход…';
@@ -283,7 +292,7 @@ el.run.addEventListener('click', async () => {
   const wasComplete = state.complete;
   state.modelKey = modelKey;
   state.busy = true;
-  const resume = state.imported || (state.segments.length && state.duration && !wasComplete ? { nextIndex: state.segments.length, durationSeconds: state.duration } : null);
+  const resume = state.imported || (state.segments.length && state.duration && !wasComplete ? { nextIndex: state.segments.length, durationSeconds: state.duration, ranges: state.ranges } : null);
   state.complete = false;
   if (!resume) { state.segments = []; state.turns = []; el.speakerTurns.replaceChildren(); el.speakerStatus.textContent=''; renderSpeakers(); el.transcript.value = ''; setProgress(0, 0); }
   state.abort = new AbortController();
@@ -303,8 +312,11 @@ el.run.addEventListener('click', async () => {
     el.fileMeta.textContent = `${currentFile.name} · ${formatTime(decoded.duration)} · ${(currentFile.size / 1024 / 1024).toFixed(1)} МБ`;
     if (!state.busy || state.abort.signal.aborted) return;
     const samplesLength = Math.floor(decoded.length * TARGET_SAMPLE_RATE / decoded.sampleRate);
-    const ranges = chunkRanges(samplesLength, TARGET_SAMPLE_RATE, CHUNK_SECONDS);
+    const ranges = state.legacyFixed ? chunkRanges(samplesLength, TARGET_SAMPLE_RATE, CHUNK_SECONDS) :
+      (resume?.ranges?.length ? resume.ranges : pauseAwareRanges(decoded));
     if (ranges.length === 0) throw new Error('Аудиофайл пуст.');
+    state.ranges = ranges;
+    setStatus(state.legacyFixed ? 'Продолжаю старую контрольную точку (25 секунд)…' : 'Найдены паузы речи; начинаю обработку фрагментов переменной длины…');
     const worker = new Worker('./asr-worker.js', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
@@ -337,7 +349,7 @@ el.run.addEventListener('click', async () => {
           text = `[ТРЕБУЕТ ПРОСЛУШИВАНИЯ: подозрительное повторение на ${formatTime(range.startSeconds)}] ${text.slice(0, 200)}`;
         }
       }
-      state.segments.push({ startSeconds: range.startSeconds, text, timedChunks });
+      state.segments.push({ startSeconds: range.startSeconds, endSeconds: range.endSeconds, text, timedChunks });
       renderSpeakers();
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
