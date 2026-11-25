@@ -1,0 +1,59 @@
+name: Preview MedPriem v0.6 without replacing main
+on:
+  push:
+    branches: [feature/v06-pause-pipeline]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: medpriem-pages
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check
+      - run: npm test
+  deploy-preview:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}preview-v06/
+    steps:
+      - name: Main site's currently published sources
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: stable
+      - name: Candidate preview source
+        uses: actions/checkout@v4
+        with:
+          ref: feature/v06-pause-pipeline
+          path: candidate
+      - name: Build two isolated paths
+        run: |
+          mkdir -p public/preview-v06
+          cp -a stable/site/. public/
+          cp -a candidate/site/. public/preview-v06/
+          test -s public/index.html
+          test -s public/preview-v06/index.html
+          test -s public/preview-v06/preflight.js
+          test -s public/preview-v06/silero-segmentation.js
+          test -s public/preview-v06/asr-worker.js
+          echo "Stable root and separate v0.6 preview prepared"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+      - uses: actions/deploy-pages@v4
+        id: deploy
