@@ -2,6 +2,7 @@
 // scripts/weights are self-hosted, audited, and network egress is restricted.
 import { resolveModel } from './model-options.js';
 const ENGINE_VERSION = '3.8.1';
+const BUILD_ID = '06-onnx-q4-20261126';
 let transcriber = null;
 let loadedModelKey = null;
 let busy = false;
@@ -13,12 +14,37 @@ async function init(modelKey) {
   transcriber = null;
   loadedModelKey = null;
   const { pipeline } = await import(`https://cdn.jsdelivr.net/npm/@huggingface/transformers@${ENGINE_VERSION}`);
-  transcriber = await pipeline('automatic-speech-recognition', model.id, {
-    device: 'wasm', dtype: 'q8',
-    progress_callback: info => {
-      if (info?.status === 'progress') self.postMessage({ type: 'model-progress', file: info.file || '', progress: info.progress || 0 });
-    },
+  const progress_callback = info => {
+    if (info?.status === 'progress') self.postMessage({
+      type: 'model-progress', file: info.file || '', progress: info.progress || 0,
+    });
+  };
+  // The fp32 Turbo encoder is >2 GB and relies on an external .onnx_data
+  // file unsupported by our current browser runtime. q4 is self-contained.
+  const mixedDtype = { encoder_model: 'q4', decoder_model_merged: 'q4' };
+  const initialDtype = model.family === 'whisper' && ['turbo', 'turbo_ru'].includes(modelKey)
+    ? mixedDtype
+    : 'q8';
+  self.postMessage({ type: 'model-config', modelKey,
+    encoderDtype: typeof initialDtype === 'object' ? initialDtype.encoder_model : initialDtype,
+    decoderDtype: typeof initialDtype === 'object' ? initialDtype.decoder_model_merged : initialDtype,
+    build: BUILD_ID,
   });
+  try {
+    transcriber = await pipeline('automatic-speech-recognition', model.id, {
+      device: 'wasm', dtype: initialDtype, progress_callback,
+    });
+  } catch (error) {
+    // q8 Whisper convolution can contain unsupported ConvInteger on WASM.
+    // Retry only this specific kernel error, not OOM/network/invalid-file failures.
+    if (model.family !== 'whisper' ||
+        !/ConvInteger|Conv_quant/i.test(String(error?.message || error)) ||
+        initialDtype !== 'q8') throw error;
+    self.postMessage({ type: 'engine-state', state: 'fallback-q4-encoder' });
+    transcriber = await pipeline('automatic-speech-recognition', model.id, {
+      device: 'wasm', dtype: mixedDtype, progress_callback,
+    });
+  }
   loadedModelKey = modelKey;
   return transcriber;
 }
@@ -51,7 +77,12 @@ self.onmessage = async ({ data }) => {
     }
     self.postMessage({ type: 'recognized', id: data.id, text: result?.text || '', chunks: Array.isArray(result?.chunks) ? result.chunks.map(c => ({ text: c.text, timestamp: c.timestamp })) : [] });
   } catch (error) {
-    self.postMessage({ type: 'error', id: data?.id, message: error instanceof Error ? error.message : String(error) });
+    const reason = error instanceof Error ? error.message : String(error);
+    const hint = /Module\.MountedFiles|encoder_model\.onnx_data/i.test(reason)
+      ? 'Браузер выбрал ONNX с внешним файлом весов. Версия worker=' + BUILD_ID +
+        '. Это ошибка выбора/совместимости модели, не аудиозаписи.'
+      : '';
+    self.postMessage({ type: 'error', id: data?.id, message: hint ? hint + ' ' + reason : reason });
   } finally {
     busy = false;
   }

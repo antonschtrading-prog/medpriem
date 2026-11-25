@@ -1,4 +1,8 @@
 import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
+import { pauseAwareRanges } from './pause-segmentation.js';
+import { sileroPauseRanges } from './silero-segmentation.js';
+import { runEnginePreflight } from './preflight.js';
+import { createPauseCheckpoint, readPauseCheckpoint } from './pause-checkpoint.js';
 import { createCheckpoint, readCheckpoint, memoryEstimateMiB } from './checkpoint.js';
 import { cleanFilename, downloadText, exportTranscriptText } from './exports.js';
 import { resolveModel } from './model-options.js';
@@ -9,11 +13,12 @@ import { normalizeSpeakerTurns, diarizedTranscript } from './diarization.js';
 const $ = id => document.getElementById(id);
 const el = {
   audio: $('audio-file'), fileMeta: $('file-meta'), play: $('audio-preview'),
+  preflight: $('engine-preflight'), preflightResult: $('engine-preflight-result'),
   run: $('run'), cancel: $('cancel'), rerun: $('rerun'), save: $('save'), transcript: $('transcript'), previousTranscript: $('previous-transcript'), previousModel: $('previous-model'), comparisonBox: $('comparison-box'),
   status: $('status'), progress: $('progress'), count: $('segment-count'),
   note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'), speakerAfter: $('speaker-after'), speakerAuto: $('speaker-auto'), speakerStatus: $('speaker-status'), speakerTurns: $('speaker-turns'), speakerExportAuto: $('speaker-export-auto'),
 };
-const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [] };
+const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [], ranges: [], legacyFixed: false, preflightBusy: false, vadEngine: null };
 
 function setStatus(message, isError = false) {
   el.status.textContent = message;
@@ -25,15 +30,16 @@ function setProgress(done, total) {
   el.count.textContent = total ? `${done} / ${total} фрагментов (${pct}%)` : '';
 }
 function updateActions() {
-  el.run.disabled = !state.file || state.busy || !el.privacy.checked;
+  el.run.disabled = !state.file || state.busy || state.preflightBusy || !el.privacy.checked;
   el.cancel.disabled = !state.busy;
-  el.rerun.disabled = !state.file || state.busy || !state.segments.length || !el.privacy.checked;
+  el.rerun.disabled = !state.file || state.busy || state.preflightBusy || !state.segments.length || !el.privacy.checked;
   el.save.disabled = !el.transcript.value.trim();
   el.audio.disabled = state.busy;
   el.privacy.disabled = state.busy;
   el.checkpointSave.disabled = !state.file || !state.segments.length || !state.duration;
   el.checkpointFile.disabled = state.busy || !state.file;
-  el.model.disabled = state.busy;
+  el.model.disabled = state.busy || state.preflightBusy;
+  el.preflight.disabled = state.busy || state.preflightBusy;
   el.speakerSave.disabled = !state.segments.length || state.busy;
   el.speakerAuto.disabled = !state.file || state.busy || state.diarizationBusy || !state.segments.length || !el.privacy.checked;
   el.speakerExportAuto.disabled = !state.turns.length || state.busy || state.diarizationBusy;
@@ -50,6 +56,7 @@ el.audio.addEventListener('change', () => {
   state.imported = null;
   state.duration = null;
   state.modelKey = null;
+  state.ranges = []; state.legacyFixed = false; state.vadEngine = null;
   state.turns = []; el.speakerStatus.textContent = ''; el.speakerTurns.replaceChildren();
   el.reviewList.replaceChildren(); el.speakerList.replaceChildren(); el.benchmarkResult.textContent = '';
   el.comparisonBox.hidden = true;
@@ -68,11 +75,32 @@ el.audio.addEventListener('change', () => {
   updateActions();
 });
 el.privacy.addEventListener('change', updateActions);
+el.preflight.addEventListener('click', async () => {
+  if (state.busy || state.preflightBusy) return;
+  state.preflightBusy = true;
+  el.preflightResult.textContent = 'Проверяю доступность библиотек и модели…';
+  updateActions();
+  try {
+    const results = await runEnginePreflight(el.model.value, message => {
+      el.preflightResult.textContent = message;
+    });
+    el.preflightResult.textContent = results.map(r =>
+      (r.ok ? '✓ ' : '✗ ') + r.name + ': ' + r.details
+    ).join('\n');
+    if (results.some(r => !r.ok)) setStatus('Самопроверка обнаружила проблему. Режим Silero или модель могут быть недоступны.', true);
+    else setStatus('Проверка Silero выполнена. Манифест модели доступен. Полное распознавание и голоса пока не проверены.');
+  } catch (error) {
+    el.preflightResult.textContent = 'Самопроверка прервана: ' + (error?.message || String(error));
+  } finally {
+    state.preflightBusy = false;
+    updateActions();
+  }
+});
 el.transcript.addEventListener('input', updateActions);
 el.checkpointSave.addEventListener('click', () => {
   if (!state.file || !state.segments.length || !state.duration) return;
   try {
-    const checkpoint = createCheckpoint({ file: state.file, segments: state.segments, durationSeconds: state.duration, chunkSeconds: CHUNK_SECONDS, completed: state.complete, modelKey: state.modelKey ?? el.model.value });
+    const checkpoint = state.legacyFixed ? createCheckpoint({ file: state.file, segments: state.segments, durationSeconds: state.duration, chunkSeconds: CHUNK_SECONDS, completed: state.complete, modelKey: state.modelKey ?? el.model.value }) : createPauseCheckpoint({ file: state.file, segments: state.segments, durationSeconds: state.duration, ranges: state.ranges, completed: state.complete, modelKey: state.modelKey ?? el.model.value });
     downloadText(JSON.stringify(checkpoint, null, 2), `${cleanFilename(state.file.name)}_контрольная_точка.medpriem.json`);
     setStatus('Контрольная точка подготовлена для сохранения. Файл содержит текст разговора, храните его конфиденциально.');
   } catch (error) { setStatus(error.message, true); }
@@ -81,8 +109,13 @@ el.checkpointFile.addEventListener('change', async () => {
   const file = el.checkpointFile.files?.[0];
   if (!file || !state.file || state.busy) return;
   try {
-    const checkpoint = readCheckpoint(await file.text(), state.file);
-    if (checkpoint.chunkSeconds !== CHUNK_SECONDS) throw new Error('Другая длительность фрагментов, продолжение невозможно.');
+    const checkpointText = await file.text();
+    const meta = JSON.parse(checkpointText);
+    const legacyFixed = meta.version === 1;
+    const checkpoint = legacyFixed ? readCheckpoint(checkpointText, state.file) : readPauseCheckpoint(checkpointText, state.file);
+    if (legacyFixed && checkpoint.chunkSeconds !== CHUNK_SECONDS) throw new Error('Другая длительность старых фрагментов, продолжение невозможно.');
+    state.legacyFixed = legacyFixed;
+    state.ranges = legacyFixed ? [] : checkpoint.ranges;
     el.model.value = checkpoint.modelKey;
     state.modelKey = checkpoint.modelKey;
     state.imported = checkpoint;
@@ -92,7 +125,7 @@ el.checkpointFile.addEventListener('change', async () => {
     el.transcript.value = buildTranscript(state.segments, !state.complete);
     state.turns = []; el.speakerTurns.replaceChildren(); el.speakerStatus.textContent = '';
     renderSpeakers();
-    setProgress(checkpoint.nextIndex, Math.ceil(checkpoint.durationSeconds / CHUNK_SECONDS));
+    setProgress(checkpoint.nextIndex, legacyFixed ? Math.ceil(checkpoint.durationSeconds / CHUNK_SECONDS) : checkpoint.ranges.length);
     el.note.textContent = 'Восстановлены ранее распознанные фрагменты. Ручные правки после контрольной точки в неё не входят.';
     setStatus(`Контрольная точка загружена: ${checkpoint.nextIndex} фрагментов. Нажмите «Начать расшифровку» для продолжения.`);
   } catch (error) {
@@ -120,6 +153,8 @@ function workerRecognize(worker, data, signal) {
       const msg = event.data;
       if (msg.type === 'model-progress') {
         setStatus(`Загружаю бесплатную модель (${Math.round(msg.progress)}%)… Первый запуск требует интернета.`);
+      } else if (msg.type === 'model-config') {
+        setStatus(`Модель ${msg.modelKey}; фактические веса: encoder=${msg.encoderDtype}, decoder=${msg.decoderDtype}; код ${msg.build}. Загружаю ONNX…`);
       } else if (msg.type === 'engine-state') {
         if (msg.state === 'running') setStatus('Распознаю речь непосредственно на этом устройстве…');
       } else if (msg.id === data.id && msg.type === 'recognized') {
@@ -263,6 +298,7 @@ el.rerun.addEventListener('click', () => {
   state.complete = false;
   state.imported = null;
   state.duration = null;
+  state.ranges = []; state.legacyFixed = false;
   state.modelKey = null;
   el.transcript.value = '';
   el.note.textContent = 'Предыдущий результат сохранён для сравнения в этой вкладке. Запускаю новый проход…';
@@ -283,7 +319,7 @@ el.run.addEventListener('click', async () => {
   const wasComplete = state.complete;
   state.modelKey = modelKey;
   state.busy = true;
-  const resume = state.imported || (state.segments.length && state.duration && !wasComplete ? { nextIndex: state.segments.length, durationSeconds: state.duration } : null);
+  const resume = state.imported || (state.segments.length && state.duration && !wasComplete ? { nextIndex: state.segments.length, durationSeconds: state.duration, ranges: state.ranges } : null);
   state.complete = false;
   if (!resume) { state.segments = []; state.turns = []; el.speakerTurns.replaceChildren(); el.speakerStatus.textContent=''; renderSpeakers(); el.transcript.value = ''; setProgress(0, 0); }
   state.abort = new AbortController();
@@ -303,9 +339,32 @@ el.run.addEventListener('click', async () => {
     el.fileMeta.textContent = `${currentFile.name} · ${formatTime(decoded.duration)} · ${(currentFile.size / 1024 / 1024).toFixed(1)} МБ`;
     if (!state.busy || state.abort.signal.aborted) return;
     const samplesLength = Math.floor(decoded.length * TARGET_SAMPLE_RATE / decoded.sampleRate);
-    const ranges = chunkRanges(samplesLength, TARGET_SAMPLE_RATE, CHUNK_SECONDS);
+    let ranges, segmentationNote = '';
+    if (state.legacyFixed) {
+      ranges = chunkRanges(samplesLength, TARGET_SAMPLE_RATE, CHUNK_SECONDS);
+      segmentationNote = 'Продолжаю старую контрольную точку (25 секунд).';
+    } else if (resume?.ranges?.length) {
+      ranges = resume.ranges;
+      segmentationNote = 'Восстановлены сохранённые границы речи.';
+    } else {
+      setStatus('Silero VAD определяет интервалы речи непосредственно в браузере…');
+      try {
+        const result = await sileroPauseRanges(decoded);
+        ranges = result.ranges;
+        segmentationNote = `Silero VAD: найдено ${result.speechCount} речевых интервалов.`;
+      } catch (error) {
+        ranges = pauseAwareRanges(decoded);
+        segmentationNote = 'Silero VAD недоступен, использован локальный анализ пауз по энергии: ' +
+          (error instanceof Error ? error.message : String(error));
+      }
+    }
+    if (!state.busy || state.abort.signal.aborted) return;
     if (ranges.length === 0) throw new Error('Аудиофайл пуст.');
-    const worker = new Worker('./asr-worker.js', { type: 'module' });
+    state.ranges = ranges;
+    state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
+    el.note.textContent = segmentationNote;
+    setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
+    const worker = new Worker('./asr-worker.js?v=06-onnx-q4-20261126', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
@@ -337,17 +396,17 @@ el.run.addEventListener('click', async () => {
           text = `[ТРЕБУЕТ ПРОСЛУШИВАНИЯ: подозрительное повторение на ${formatTime(range.startSeconds)}] ${text.slice(0, 200)}`;
         }
       }
-      state.segments.push({ startSeconds: range.startSeconds, text, timedChunks });
+      state.segments.push({ startSeconds: range.startSeconds, endSeconds: range.endSeconds, text, timedChunks });
       renderSpeakers();
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
-      if ((i + 1) % 12 === 0) el.note.textContent = 'Для защиты прогресса сохраните контрольную точку прямо сейчас. Кнопка доступна во время обработки.';
+      if ((i + 1) % 12 === 0) el.note.textContent = segmentationNote + ' Для защиты прогресса сохраните контрольную точку прямо сейчас.';
       updateActions();
     }
     state.complete = true;
     state.imported = null;
     setStatus('Расшифровка завершена. Проверьте текст по оригинальной записи.');
-    el.note.textContent = 'Распознавание экспериментальное: ошибки в терминах и дозировках возможны. Говорящие автоматически не определяются.';
+    el.note.textContent = segmentationNote + ' Распознавание экспериментальное: ошибки в терминах и дозировках возможны. Говорящие автоматически не определяются.';
   } catch (error) {
     if (state.busy || error?.name !== 'AbortError') {
       setStatus(error instanceof Error ? error.message : String(error), true);
