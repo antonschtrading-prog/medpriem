@@ -19,7 +19,20 @@ async function ensureSilero() {
     await loadScript(VAD_ROOT + 'bundle.min.js');
     if (!globalThis.vad?.NonRealTimeVAD) throw new Error('Silero NonRealTimeVAD недоступен в браузере.');
   })();
-  return scriptsPromise;
+  try { return await scriptsPromise; }
+  catch (error) { scriptsPromise = null; throw error; }
+}
+
+// Checks actual WASM/model initialisation and a short inference, not only CDN availability.
+export async function checkSileroRuntime() {
+  await ensureSilero();
+  const detector = await globalThis.vad.NonRealTimeVAD.new({
+    model: 'v5', baseAssetPath: VAD_ROOT, onnxWASMBasePath: ORT_ROOT,
+  });
+  const samples = new Float32Array(16000 * 2);
+  let windows = 0;
+  for await (const _turn of detector.run(samples, 16000)) windows++;
+  return { checkedSeconds: 2, speechWindows: windows };
 }
 export function rangesFromSpeechIntervals(speech, sampleCount, sampleRate = 16000) {
   if (!Number.isInteger(sampleCount) || sampleCount <= 0) return [];
