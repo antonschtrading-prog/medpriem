@@ -23,3 +23,16 @@ test('preflight rejects missing model config without downloading large weights',
   const fetcher=async () => ({ok:false,status:404});
   await assert.rejects(checkModelManifest('turbo_ru',fetcher), /HTTP 404/);
 });
+
+test('preflight recognizes independent Russian CTC single quantized model', async () => {
+  const result = await checkModelManifest('xlsr_ru', fakeFetch(['model_quantized.onnx']));
+  assert.equal(result.family, 'ctc');
+  assert.equal(result.q8Ready, true);
+  assert.equal(result.singleModel, true);
+  assert.equal(result.encoder, false);
+  assert.equal(result.decoder, false);
+});
+test('preflight rejects CTC model without quantized file', async () => {
+  const result = await checkModelManifest('xlsr_ru', fakeFetch(['model.onnx']));
+  assert.equal(result.q8Ready, false);
+});
