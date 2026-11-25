@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check site/app.js && node --check site/asr-worker.js && node --check site/hallucination.js && node --check site/model-options.js && node --check site/quality.js && node --check site/diarization.js && node --check site/diarization-worker.js && node --check site/pause-segmentation.js && node --check site/pause-checkpoint.js && node --check site/silero-segmentation.js"
+    "check": "node --check site/app.js && node --check site/asr-worker.js && node --check site/hallucination.js && node --check site/model-options.js && node --check site/quality.js && node --check site/diarization.js && node --check site/diarization-worker.js && node --check site/pause-segmentation.js && node --check site/pause-checkpoint.js && node --check site/silero-segmentation.js && node --check site/preflight.js"
   }
 }
