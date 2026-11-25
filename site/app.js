@@ -30,15 +30,15 @@ function setProgress(done, total) {
   el.count.textContent = total ? `${done} / ${total} фрагментов (${pct}%)` : '';
 }
 function updateActions() {
-  el.run.disabled = !state.file || state.busy || !el.privacy.checked;
+  el.run.disabled = !state.file || state.busy || state.preflightBusy || !el.privacy.checked;
   el.cancel.disabled = !state.busy;
-  el.rerun.disabled = !state.file || state.busy || !state.segments.length || !el.privacy.checked;
+  el.rerun.disabled = !state.file || state.busy || state.preflightBusy || !state.segments.length || !el.privacy.checked;
   el.save.disabled = !el.transcript.value.trim();
   el.audio.disabled = state.busy;
   el.privacy.disabled = state.busy;
   el.checkpointSave.disabled = !state.file || !state.segments.length || !state.duration;
   el.checkpointFile.disabled = state.busy || !state.file;
-  el.model.disabled = state.busy;
+  el.model.disabled = state.busy || state.preflightBusy;
   el.preflight.disabled = state.busy || state.preflightBusy;
   el.speakerSave.disabled = !state.segments.length || state.busy;
   el.speakerAuto.disabled = !state.file || state.busy || state.diarizationBusy || !state.segments.length || !el.privacy.checked;
