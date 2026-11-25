@@ -66,6 +66,13 @@ export function pauseAwareRanges(audioBuffer, {
     });
     startFrame = endFrame;
   }
+  // Do not feed a final sub-0.5-second tail to the ASR worker.
+  if (output.length > 1 && output[output.length - 1].endSample - output[output.length - 1].startSample < sampleRate / 2) {
+    const tail = output.pop();
+    output[output.length - 1].endSample = tail.endSample;
+    output[output.length - 1].endSeconds = tail.endSeconds;
+    output[output.length - 1].forcedCut = true;
+  }
   if (output.length) output[output.length - 1].endSample = outputLength;
   if (output.length) output[output.length - 1].endSeconds = outputLength / sampleRate;
   return output;
