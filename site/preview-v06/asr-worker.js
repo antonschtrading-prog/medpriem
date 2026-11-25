@@ -14,7 +14,13 @@ async function init(modelKey) {
   loadedModelKey = null;
   const { pipeline } = await import(`https://cdn.jsdelivr.net/npm/@huggingface/transformers@${ENGINE_VERSION}`);
   transcriber = await pipeline('automatic-speech-recognition', model.id, {
-    device: 'wasm', dtype: 'q8',
+    device: 'wasm',
+    // ONNX Runtime Web cannot execute some integer-quantized Whisper conv1
+    // encoders (ConvInteger/Conv_quant). Keep its convolutional encoder in fp32,
+    // while retaining the smaller q8 decoder. Large models may still OOM on 8 GB.
+    dtype: model.family === 'whisper' && ['turbo', 'turbo_ru'].includes(modelKey)
+      ? { encoder_model: 'fp32', decoder_model_merged: 'q8' }
+      : 'q8',
     progress_callback: info => {
       if (info?.status === 'progress') self.postMessage({ type: 'model-progress', file: info.file || '', progress: info.progress || 0 });
     },
