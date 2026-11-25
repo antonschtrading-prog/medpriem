@@ -1,5 +1,6 @@
 import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
 import { pauseAwareRanges } from './pause-segmentation.js';
+import { sileroPauseRanges } from './silero-segmentation.js';
 import { createPauseCheckpoint, readPauseCheckpoint } from './pause-checkpoint.js';
 import { createCheckpoint, readCheckpoint, memoryEstimateMiB } from './checkpoint.js';
 import { cleanFilename, downloadText, exportTranscriptText } from './exports.js';
@@ -312,11 +313,29 @@ el.run.addEventListener('click', async () => {
     el.fileMeta.textContent = `${currentFile.name} · ${formatTime(decoded.duration)} · ${(currentFile.size / 1024 / 1024).toFixed(1)} МБ`;
     if (!state.busy || state.abort.signal.aborted) return;
     const samplesLength = Math.floor(decoded.length * TARGET_SAMPLE_RATE / decoded.sampleRate);
-    const ranges = state.legacyFixed ? chunkRanges(samplesLength, TARGET_SAMPLE_RATE, CHUNK_SECONDS) :
-      (resume?.ranges?.length ? resume.ranges : pauseAwareRanges(decoded));
+    let ranges, segmentationNote = '';
+    if (state.legacyFixed) {
+      ranges = chunkRanges(samplesLength, TARGET_SAMPLE_RATE, CHUNK_SECONDS);
+      segmentationNote = 'Продолжаю старую контрольную точку (25 секунд).';
+    } else if (resume?.ranges?.length) {
+      ranges = resume.ranges;
+      segmentationNote = 'Восстановлены сохранённые границы речи.';
+    } else {
+      setStatus('Silero VAD определяет интервалы речи непосредственно в браузере…');
+      try {
+        const result = await sileroPauseRanges(decoded);
+        ranges = result.ranges;
+        segmentationNote = `Silero VAD: найдено ${result.speechCount} речевых интервалов.`;
+      } catch (error) {
+        ranges = pauseAwareRanges(decoded);
+        segmentationNote = 'Silero VAD недоступен, использован локальный анализ пауз по энергии: ' +
+          (error instanceof Error ? error.message : String(error));
+      }
+    }
+    if (!state.busy || state.abort.signal.aborted) return;
     if (ranges.length === 0) throw new Error('Аудиофайл пуст.');
     state.ranges = ranges;
-    setStatus(state.legacyFixed ? 'Продолжаю старую контрольную точку (25 секунд)…' : 'Найдены паузы речи; начинаю обработку фрагментов переменной длины…');
+    setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
     const worker = new Worker('./asr-worker.js', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
