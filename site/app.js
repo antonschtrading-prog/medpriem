@@ -1,6 +1,7 @@
 import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
 import { pauseAwareRanges } from './pause-segmentation.js';
 import { sileroPauseRanges } from './silero-segmentation.js';
+import { runEnginePreflight } from './preflight.js';
 import { createPauseCheckpoint, readPauseCheckpoint } from './pause-checkpoint.js';
 import { createCheckpoint, readCheckpoint, memoryEstimateMiB } from './checkpoint.js';
 import { cleanFilename, downloadText, exportTranscriptText } from './exports.js';
@@ -12,11 +13,12 @@ import { normalizeSpeakerTurns, diarizedTranscript } from './diarization.js';
 const $ = id => document.getElementById(id);
 const el = {
   audio: $('audio-file'), fileMeta: $('file-meta'), play: $('audio-preview'),
+  preflight: $('engine-preflight'), preflightResult: $('engine-preflight-result'),
   run: $('run'), cancel: $('cancel'), rerun: $('rerun'), save: $('save'), transcript: $('transcript'), previousTranscript: $('previous-transcript'), previousModel: $('previous-model'), comparisonBox: $('comparison-box'),
   status: $('status'), progress: $('progress'), count: $('segment-count'),
   note: $('note'), privacy: $('privacy-agree'), checkpointSave: $('checkpoint-save'), checkpointFile: $('checkpoint-file'), memory: $('memory-warning'), model: $('asr-model'), reviewRun: $('review-run'), reviewList: $('review-list'), reference: $('reference'), benchmarkRun: $('benchmark-run'), benchmarkResult: $('benchmark-result'), speakerList: $('speaker-list'), speakerSave: $('speaker-save'), speakerAfter: $('speaker-after'), speakerAuto: $('speaker-auto'), speakerStatus: $('speaker-status'), speakerTurns: $('speaker-turns'), speakerExportAuto: $('speaker-export-auto'),
 };
-const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [], ranges: [], legacyFixed: false };
+const state = { file: null, worker: null, abort: null, busy: false, segments: [], complete: false, imported: null, duration: null, modelKey: null, diarizationBusy: false, diarizationWorker: null, turns: [], ranges: [], legacyFixed: false, preflightBusy: false, vadEngine: null };
 
 function setStatus(message, isError = false) {
   el.status.textContent = message;
@@ -37,6 +39,7 @@ function updateActions() {
   el.checkpointSave.disabled = !state.file || !state.segments.length || !state.duration;
   el.checkpointFile.disabled = state.busy || !state.file;
   el.model.disabled = state.busy;
+  el.preflight.disabled = state.busy || state.preflightBusy;
   el.speakerSave.disabled = !state.segments.length || state.busy;
   el.speakerAuto.disabled = !state.file || state.busy || state.diarizationBusy || !state.segments.length || !el.privacy.checked;
   el.speakerExportAuto.disabled = !state.turns.length || state.busy || state.diarizationBusy;
@@ -53,7 +56,7 @@ el.audio.addEventListener('change', () => {
   state.imported = null;
   state.duration = null;
   state.modelKey = null;
-  state.ranges = []; state.legacyFixed = false;
+  state.ranges = []; state.legacyFixed = false; state.vadEngine = null;
   state.turns = []; el.speakerStatus.textContent = ''; el.speakerTurns.replaceChildren();
   el.reviewList.replaceChildren(); el.speakerList.replaceChildren(); el.benchmarkResult.textContent = '';
   el.comparisonBox.hidden = true;
@@ -72,6 +75,27 @@ el.audio.addEventListener('change', () => {
   updateActions();
 });
 el.privacy.addEventListener('change', updateActions);
+el.preflight.addEventListener('click', async () => {
+  if (state.busy || state.preflightBusy) return;
+  state.preflightBusy = true;
+  el.preflightResult.textContent = 'Проверяю доступность библиотек и модели…';
+  updateActions();
+  try {
+    const results = await runEnginePreflight(el.model.value, message => {
+      el.preflightResult.textContent = message;
+    });
+    el.preflightResult.textContent = results.map(r =>
+      (r.ok ? '✓ ' : '✗ ') + r.name + ': ' + r.details
+    ).join('\n');
+    if (results.some(r => !r.ok)) setStatus('Самопроверка обнаружила проблему. Режим Silero или модель могут быть недоступны.', true);
+    else setStatus('Проверка Silero выполнена. Манифест модели доступен. Полное распознавание и голоса пока не проверены.');
+  } catch (error) {
+    el.preflightResult.textContent = 'Самопроверка прервана: ' + (error?.message || String(error));
+  } finally {
+    state.preflightBusy = false;
+    updateActions();
+  }
+});
 el.transcript.addEventListener('input', updateActions);
 el.checkpointSave.addEventListener('click', () => {
   if (!state.file || !state.segments.length || !state.duration) return;
@@ -335,6 +359,8 @@ el.run.addEventListener('click', async () => {
     if (!state.busy || state.abort.signal.aborted) return;
     if (ranges.length === 0) throw new Error('Аудиофайл пуст.');
     state.ranges = ranges;
+    state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
+    el.note.textContent = segmentationNote;
     setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
     const worker = new Worker('./asr-worker.js', { type: 'module' });
     state.worker = worker;
@@ -372,13 +398,13 @@ el.run.addEventListener('click', async () => {
       renderSpeakers();
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
-      if ((i + 1) % 12 === 0) el.note.textContent = 'Для защиты прогресса сохраните контрольную точку прямо сейчас. Кнопка доступна во время обработки.';
+      if ((i + 1) % 12 === 0) el.note.textContent = segmentationNote + ' Для защиты прогресса сохраните контрольную точку прямо сейчас.';
       updateActions();
     }
     state.complete = true;
     state.imported = null;
     setStatus('Расшифровка завершена. Проверьте текст по оригинальной записи.');
-    el.note.textContent = 'Распознавание экспериментальное: ошибки в терминах и дозировках возможны. Говорящие автоматически не определяются.';
+    el.note.textContent = segmentationNote + ' Распознавание экспериментальное: ошибки в терминах и дозировках возможны. Говорящие автоматически не определяются.';
   } catch (error) {
     if (state.busy || error?.name !== 'AbortError') {
       setStatus(error instanceof Error ? error.message : String(error), true);
