@@ -18,7 +18,9 @@ async function init(modelKey) {
       type: 'model-progress', file: info.file || '', progress: info.progress || 0,
     });
   };
-  const mixedDtype = { encoder_model: 'fp32', decoder_model_merged: 'q8' };
+  // The fp32 Turbo encoder is >2 GB and relies on an external .onnx_data
+  // file unsupported by our current browser runtime. q4 is self-contained.
+  const mixedDtype = { encoder_model: 'q4', decoder_model_merged: 'q4' };
   const initialDtype = model.family === 'whisper' && ['turbo', 'turbo_ru'].includes(modelKey)
     ? mixedDtype
     : 'q8';
@@ -32,7 +34,7 @@ async function init(modelKey) {
     if (model.family !== 'whisper' ||
         !/ConvInteger|Conv_quant/i.test(String(error?.message || error)) ||
         initialDtype !== 'q8') throw error;
-    self.postMessage({ type: 'engine-state', state: 'fallback-fp32-encoder' });
+    self.postMessage({ type: 'engine-state', state: 'fallback-q4-encoder' });
     transcriber = await pipeline('automatic-speech-recognition', model.id, {
       device: 'wasm', dtype: mixedDtype, progress_callback,
     });
