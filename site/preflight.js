@@ -4,6 +4,7 @@ import { checkSileroRuntime } from './silero-segmentation.js';
 
 export async function checkModelManifest(modelKey, fetcher = fetch) {
   const { id, family } = resolveModel(modelKey);
+  const turbo = modelKey === 'turbo' || modelKey === 'turbo_ru';
   const url = 'https://huggingface.co/' + id + '/resolve/main/config.json';
   const response = await fetcher(url, { method: 'GET', cache: 'no-store' });
   if (!response.ok) throw new Error('Модель недоступна: HTTP ' + response.status);
@@ -20,8 +21,11 @@ export async function checkModelManifest(modelKey, fetcher = fetch) {
   const decoder = paths.some(name => /^decoder_model(_merged)?_(quantized|int8|uint8)\.onnx$/.test(name));
   // CTC exports contain one acoustic model, not Whisper's encoder/decoder pair.
   const singleModel = paths.some(name => /^model_(quantized|int8|uint8)\.onnx$/.test(name));
+  const q4Encoder = paths.includes('encoder_model_q4.onnx');
+  const q4Decoder = paths.includes('decoder_model_merged_q4.onnx');
   const q8Ready = family === 'ctc' ? singleModel : encoder && decoder;
-  return { id, type: config.model_type, family, q8Ready, encoder, decoder, singleModel };
+  const ready = turbo ? q4Encoder && q4Decoder : q8Ready;
+  return { id, type: config.model_type, family, ready, q8Ready, encoder, decoder, singleModel, q4Encoder, q4Decoder, turbo };
 }
 
 export async function runEnginePreflight(modelKey, update = () => {}) {
@@ -36,10 +40,10 @@ export async function runEnginePreflight(modelKey, update = () => {}) {
   update('Проверяю конфигурацию выбранной модели. Большие веса не загружаю…');
   try {
     const result = await checkModelManifest(modelKey);
-    checks.push({ name: 'ASR: конфигурация и q8 ONNX', ok: result.q8Ready,
-      details: result.id + ', тип ' + result.type + (result.family === 'ctc' ? ', q8 CTC model=' + result.singleModel : ', q8 encoder=' + result.encoder + ', decoder=' + result.decoder) + '. Реальное распознавание НЕ проверено.' });
+    checks.push({ name: 'ASR: выбранные ONNX-файлы', ok: result.ready,
+      details: result.id + ', тип ' + result.type + (result.turbo ? ', q4 encoder=' + result.q4Encoder + ', q4 decoder=' + result.q4Decoder : result.family === 'ctc' ? ', q8 CTC model=' + result.singleModel : ', q8 encoder=' + result.encoder + ', decoder=' + result.decoder) + '. Реальное распознавание НЕ проверено.' });
   } catch (error) {
-    checks.push({ name: 'ASR: конфигурация и q8 ONNX', ok: false, details: String(error?.message || error) });
+    checks.push({ name: 'ASR: выбранные ONNX-файлы', ok: false, details: String(error?.message || error) });
   }
   return checks;
 }
