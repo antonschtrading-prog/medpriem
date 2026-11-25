@@ -10,7 +10,7 @@
 </head>
 <body>
   <main class="shell">
-    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Прототип 0.5</span></header>
+    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Эксперимент 0.6</span></header>
     <section class="hero">
       <p class="eyebrow">ЭКСПЕРИМЕНТАЛЬНЫЙ РЕЖИМ</p>
       <h2>Расшифруйте запись приёма без сервера и подписок</h2>
@@ -22,14 +22,14 @@
       <input type="file" id="audio-file" accept="audio/*,.m4a,.mp3,.wav,.mp4" aria-describedby="file-meta">
       <p id="file-meta" class="muted">Файл не выбран</p><p id="memory-warning" class="tiny" role="status"></p>
       <audio id="audio-preview" controls preload="none" hidden></audio>
-      <p class="tiny">Поддерживается экспериментальная обработка до 60 минут. Длинный файл целиком декодируется браузером: особенно на iPhone возможны нехватка памяти и остановка. Сначала проверьте короткую запись.</p>
+      <p class="tiny">Поддерживается экспериментальная обработка до 60 минут. Длинный файл целиком декодируется браузером: особенно на iPhone возможны нехватка памяти и остановка. Для эксперимента используйте вашу обезличенную запись.</p>
     </section>
     <section class="panel" aria-labelledby="step2"><span class="number">02</span><h3 id="step2">Распознать русский разговор</h3>
       <p class="muted">Испытываем модели для русского языка: Whisper и отдельную русскоязычную Wav2Vec2 XLSR. Версия 0.6: локальное определение пауз Silero VAD с резервным акустическим алгоритмом. Крупные модели требуют много памяти и времени.</p>
       <label class="setting" for="asr-model">Модель распознавания
-        <select id="asr-model"><option value="tiny">Tiny · быстрый тест</option><option value="base">Base · быстрая проверка</option><option value="small">Small · только на мощном устройстве</option><option value="xlsr_ru">Wav2Vec2 XLSR · русский · экспериментально</option><option value="medium" selected>Whisper Medium · контрольный вариант</option><option value="turbo">Whisper Large V3 Turbo · новая · очень тяжёлая · экспериментально</option><option value="turbo_ru">Whisper Large V3 Turbo Russian · новая · очень тяжёлая · экспериментально</option></select>
+        <select id="asr-model"><option value="tiny">Tiny · быстрый тест</option><option value="base">Base · быстрая проверка</option><option value="small">Small · только на мощном устройстве</option><option value="xlsr_ru" selected>Wav2Vec2 XLSR · русский · другая архитектура · экспериментально</option><option value="medium">Whisper Medium · контрольный вариант</option><option value="turbo">Whisper Large V3 Turbo · новая · очень тяжёлая · экспериментально</option><option value="turbo_ru">Whisper Large V3 Turbo Russian · новая · очень тяжёлая · экспериментально</option></select>
       </label>
-      <p class="tiny">Whisper Medium остаётся контрольной моделью. Large V3 Turbo использует подтверждённый ONNX-экспорт, но его реальная скорость и работа на Mac 8 ГБ пока не проверены. GigaAM v3 и Qwen3-ASR НЕ подключены без подтверждённой браузерной совместимости. Обе новые модели пока не проверены на реальном Safari. На iPhone начинайте с Base. При зацикливании Whisper программа один раз повторяет обработку фрагмента с другими параметрами. Нерешённые участки отмечаются для прослушивания; эта проверка не гарантирует восстановление правильных слов.</p>
+      <p class="tiny">Для независимого сравнения первым выбран Wav2Vec2 XLSR (CTC, не Whisper). Второй кандидат: Whisper Large V3 Turbo. GigaAM v3 пока не подключена: для неё требуется отдельный ONNX-движок и проверка в браузере. Whisper Medium уже тестировали, повторять необязательно. Обе новые модели пока не проверены на реальном Safari. На iPhone начинайте с Base. При зацикливании Whisper программа один раз повторяет обработку фрагмента с другими параметрами. Нерешённые участки отмечаются для прослушивания; эта проверка не гарантирует восстановление правильных слов.</p>
       <label class="consent"><input type="checkbox" id="speaker-after"><span>Экспериментально: автоматически определить говорящих после расшифровки. Потребует дополнительной памяти и загрузки локальной модели. Для длинных записей и iPhone сначала используйте короткий тест.</span></label>
       <label class="consent"><input type="checkbox" id="privacy-agree"><span>Это тестовая запись без реальных данных пациента. Понимаю, что модель и библиотека загружаются из внешних источников.</span></label>
       <div class="review-box"><button type="button" class="secondary" id="engine-preflight">Проверить готовность движков</button><p id="engine-preflight-result" class="status" role="status" aria-live="polite">Проверка не запускалась. Она проверяет Silero и доступность модели, но не точность распознавания.</p></div>
