@@ -153,6 +153,8 @@ function workerRecognize(worker, data, signal) {
       const msg = event.data;
       if (msg.type === 'model-progress') {
         setStatus(`Загружаю бесплатную модель (${Math.round(msg.progress)}%)… Первый запуск требует интернета.`);
+      } else if (msg.type === 'model-config') {
+        setStatus(`Модель ${msg.modelKey}; фактические веса: encoder=${msg.encoderDtype}, decoder=${msg.decoderDtype}; код ${msg.build}. Загружаю ONNX…`);
       } else if (msg.type === 'engine-state') {
         if (msg.state === 'running') setStatus('Распознаю речь непосредственно на этом устройстве…');
       } else if (msg.id === data.id && msg.type === 'recognized') {
@@ -362,7 +364,7 @@ el.run.addEventListener('click', async () => {
     state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
     el.note.textContent = segmentationNote;
     setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
-    const worker = new Worker('./asr-worker.js', { type: 'module' });
+    const worker = new Worker('./asr-worker.js?v=06-onnx-q4-20261126', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
