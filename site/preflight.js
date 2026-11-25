@@ -11,7 +11,15 @@ export async function checkModelManifest(modelKey, fetcher = fetch) {
   if (!config || typeof config !== 'object' || !config.model_type) {
     throw new Error('У модели отсутствует корректная конфигурация.');
   }
-  return { id, type: config.model_type };
+  const filesUrl = 'https://huggingface.co/api/models/' + id + '/tree/main/onnx';
+  const filesResponse = await fetcher(filesUrl, { method: 'GET', cache: 'no-store' });
+  if (!filesResponse.ok) throw new Error('Нельзя проверить ONNX-файлы: HTTP ' + filesResponse.status);
+  const files = await filesResponse.json();
+  const paths = Array.isArray(files) ? files.map(f => String(f.path || '').split('/').pop()) : [];
+  const encoder = paths.some(name => /^encoder_model_(quantized|int8|uint8)\.onnx$/.test(name));
+  const decoder = paths.some(name => /^decoder_model(_merged)?_(quantized|int8|uint8)\.onnx$/.test(name));
+  const q8Ready = encoder && decoder;
+  return { id, type: config.model_type, q8Ready, encoder, decoder };
 }
 
 export async function runEnginePreflight(modelKey, update = () => {}) {
@@ -26,9 +34,10 @@ export async function runEnginePreflight(modelKey, update = () => {}) {
   update('Проверяю конфигурацию выбранной модели. Большие веса не загружаю…');
   try {
     const result = await checkModelManifest(modelKey);
-    checks.push({ name: 'ASR: доступность манифеста', ok: true, details: result.id + ', тип ' + result.type + '. Реальное распознавание НЕ проверено.' });
+    checks.push({ name: 'ASR: конфигурация и q8 ONNX', ok: result.q8Ready,
+      details: result.id + ', тип ' + result.type + ', q8 encoder=' + result.encoder + ', decoder=' + result.decoder + '. Реальное распознавание НЕ проверено.' });
   } catch (error) {
-    checks.push({ name: 'ASR: доступность манифеста', ok: false, details: String(error?.message || error) });
+    checks.push({ name: 'ASR: конфигурация и q8 ONNX', ok: false, details: String(error?.message || error) });
   }
   return checks;
 }
