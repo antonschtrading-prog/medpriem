@@ -9,7 +9,7 @@ export function criticalFacts(text) {
 }
 export function meritsClinicalRetry(text) {
   const x = criticalFacts(text);
-  return x.numbers.length > 0 || x.units.length > 0 || x.medications.length > 0;
+  return x.numbers.length > 0 || x.units.length > 0 || x.negation.length > 0 || x.medications.length > 0;
 }
 export function criticalDisagreement(a, b) {
   const x = criticalFacts(a), y = criticalFacts(b);
