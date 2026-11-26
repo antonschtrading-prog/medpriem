@@ -8,6 +8,7 @@ import { cleanFilename, downloadText, exportTranscriptText } from './exports.js'
 import { resolveModel } from './model-options.js';
 import { reviewCues, benchmarkRussian } from './quality.js';
 import { repetitionAudit, preferRetry } from './hallucination.js';
+import { recognitionWindow, reconcileBoundary } from './boundary-continuity.js';
 import { normalizeSpeakerTurns, diarizedTranscript } from './diarization.js';
 
 const $ = id => document.getElementById(id);
@@ -369,12 +370,13 @@ el.run.addEventListener('click', async () => {
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
       const range = ranges[i];
-      const chunk = to16kMonoRange(decoded, range.startSample, range.endSample);
+      const window = state.legacyFixed ? { startSample: range.startSample, endSample: range.endSample, overlapSeconds: 0 } : recognitionWindow(ranges, i);
+      const chunk = to16kMonoRange(decoded, window.startSample, window.endSample);
       setStatus(`Фрагмент ${i + 1} из ${ranges.length}. Выполняется локальная расшифровка…`);
       const firstResult = await workerRecognize(worker, { type: 'recognize', id: i, modelKey, samples: chunk }, state.abort.signal);
       let text = firstResult.text;
       let timedChunks = firstResult.chunks;
-      const seconds = (range.endSample - range.startSample) / TARGET_SAMPLE_RATE;
+      const seconds = (window.endSample - window.startSample) / TARGET_SAMPLE_RATE;
       const audit = repetitionAudit(text, seconds);
       if (audit.suspicious) {
         setStatus(`Подозрительный повтор на ${formatTime(range.startSeconds)}. Пробую повторное распознавание…`);
@@ -396,7 +398,14 @@ el.run.addEventListener('click', async () => {
           text = `[ТРЕБУЕТ ПРОСЛУШИВАНИЯ: подозрительное повторение на ${formatTime(range.startSeconds)}] ${text.slice(0, 200)}`;
         }
       }
-      state.segments.push({ startSeconds: range.startSeconds, endSeconds: range.endSeconds, text, timedChunks });
+      // Only remove words whose exact repetition at the forced seam is demonstrated.
+      // Keep disagreement verbatim and mark the segment for human listening.
+      const boundary = reconcileBoundary(state.segments.at(-1)?.text, text, window.overlapSeconds > 0);
+      text = boundary.text;
+      const segment = { startSeconds: range.startSeconds, endSeconds: range.endSeconds, text,
+        timedChunks: boundary.removedWords ? [] : timedChunks,
+        boundaryReview: boundary.requiresReview };
+      state.segments.push(segment);
       renderSpeakers();
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
