@@ -1,3 +1,4 @@
+import {normalizeWindowChunks} from './word-timing.js';
 import { selectReviewJobs, compareReview, contextualWindow, attachThird } from './dual-review.js';
 import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
 import { pauseAwareRanges } from './pause-segmentation.js';
@@ -433,9 +434,7 @@ el.run.addEventListener('click', async () => {
       const boundary = reconcileBoundary(state.segments.at(-1)?.text, text, window.overlapSeconds > 0);
       text = boundary.text;
       const segment = { startSeconds: range.startSeconds, endSeconds: range.endSeconds, text, rawRecognition: firstResult.text,
-        // Overlapped word timestamps refer to different origins; do not attach
-        // them to a wrong speaker until real word alignment is available.
-        timedChunks: window.overlapSeconds > 0 ? [] : timedChunks,
+        timedChunks: normalizeWindowChunks(timedChunks,text,window,range),
         boundaryReview: boundary.requiresReview, clinicalReview };
       state.segments.push(segment);
       renderSpeakers();
@@ -462,8 +461,8 @@ el.run.addEventListener('click', async () => {
               if(s.dualReview.differs && (s.boundaryReview || s.dualReview.critical.length)){
                 const w=contextualWindow(job,ranges.at(-1).endSample);
                 if(w.startSample!==job.startSample||w.endSample!==job.endSample){
-                  const ctx=await workerRecognize(verifier,{type:'recognize',id:'context-'+j,modelKey:job.modelKey,samples:to16kMonoRange(decoded,w.startSample,w.endSample)},state.abort.signal);
-                  s.dualReview.contextText=ctx.text;
+                  try {const ctx=await workerRecognize(verifier,{type:'recognize',id:'context-'+j,modelKey:job.modelKey,samples:to16kMonoRange(decoded,w.startSample,w.endSample)},state.abort.signal);
+                  s.dualReview.contextText=ctx.text;} catch(ctxError){if(ctxError?.name==='AbortError')throw ctxError;}
                 }
               }
             } catch(e) {

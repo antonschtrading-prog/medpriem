@@ -57,3 +57,5 @@ CI 0.8 подтверждён: run 45860476153. Добавлен адаптер 
 Batch 2: native GigaAM word timestamps when text reconstruction matches; Whisper word timestamp request; string speaker IDs; conservative exact single-word seam fix adapted from GigaAMGUI (MIT notice); five contract tests and syntax checks. Overlapped word alignment, contextual reread and ROVER remain outstanding. No real inference verification.
 
 Batch 3: DP word alignment and conservative third-model consensus suggestions, contextual reread (separate text), model identifier export, diarization UI lock, Pages staging only current 1.0 and previous 0.9. Not full NIST ROVER port or independent acoustic alignment. CI and real inference pending. Prior batch CI 45906664422 PASS.
+
+Batch 4: native word timestamps retained across overlapping windows when exact text reconstruction succeeds; real Chromium smoke CI added for synthetic Russian speech (three GigaAM variants and Diarization-JS). No real accuracy claim, no medical data used. Batch 3 CI 45908176378 PASS. Publication gated on real browser smoke result.

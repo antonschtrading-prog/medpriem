@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {normalizeWindowChunks} from '../site/preview-v10/word-timing.js';
+test('overlap shift and suffix exact match',()=>{let x=normalizeWindowChunks([{text:'слово',timestamp:[0,.4]},{text:' дальше',timestamp:[.7,1.2]}],'дальше',{startSample:0},{startSample:8000,endSample:32000});assert.equal(x.length,1);assert.ok(Math.abs(x[0].timestamp[0]-.2)<1e-8);assert.equal(x[0].timestamp[1],.7);});
+test('reject mismatched text or invalid timing',()=>{assert.deepEqual(normalizeWindowChunks([{text:'нет',timestamp:[0,1]}],'да',{startSample:0},{startSample:0,endSample:32000}),[]);assert.deepEqual(normalizeWindowChunks([{text:'да',timestamp:[0,null]}],'да',{startSample:0},{startSample:0,endSample:32000}),[]);});

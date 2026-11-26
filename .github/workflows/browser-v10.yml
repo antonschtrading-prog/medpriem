@@ -1,0 +1,31 @@
+name: Real browser ASR smoke
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/preview-v10/**'
+      - 'scripts/browser-smoke-v10.mjs'
+      - '.github/workflows/browser-v10.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.58.2
+      - run: npx playwright install --with-deps chromium
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y espeak-ng ffmpeg
+          espeak-ng -v ru -s 150 -w /tmp/a.wav 'Добрый день. Сегодня мы проверяем качество распознавания речи.'
+          espeak-ng -v ru+f3 -s 145 -w /tmp/b.wav 'Здравствуйте. Давление сто двадцать на восемьдесят.'
+          ffmpeg -y -i /tmp/a.wav -i /tmp/b.wav -filter_complex '[0:a]aresample=16000[a];[1:a]aresample=16000[b];[a][b]concat=n=2:v=0:a=1[out]' -map '[out]' -ac 1 -ar 16000 /tmp/medpriem-smoke.wav
+      - run: |
+          python3 -m http.server 8765 --directory site > /tmp/medpriem-http.log 2>&1 &
+          node scripts/browser-smoke-v10.mjs
