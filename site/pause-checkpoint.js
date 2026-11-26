@@ -23,7 +23,7 @@ export function createPauseCheckpoint({ file, durationSeconds, modelKey, ranges,
     if (!s || Math.abs(s.startSeconds - checkedRanges[i].startSeconds) > 0.03 ||
         typeof s.text !== 'string' || s.text.length > 10000) throw new Error('Некорректная последовательность расшифровки.');
     return { startSeconds: s.startSeconds, text: s.text,
-      timedChunks: Array.isArray(s.timedChunks) ? s.timedChunks : [], boundaryReview: s.boundaryReview === true };
+      timedChunks: Array.isArray(s.timedChunks) ? s.timedChunks : [], boundaryReview: s.boundaryReview === true, clinicalReview: s.clinicalReview === true };
   });
   return { format: 'medpriem-local-checkpoint', version: PAUSE_CHECKPOINT_VERSION,
     segmentation: SEGMENTATION_VERSION, source: sourceIdentity(file), durationSeconds, modelKey,
