@@ -8,6 +8,8 @@ import { cleanFilename, downloadText, exportTranscriptText } from './exports.js'
 import { resolveModel } from './model-options.js';
 import { reviewCues, benchmarkRussian } from './quality.js';
 import { repetitionAudit, preferRetry } from './hallucination.js';
+import { recognitionWindow, reconcileBoundary } from './boundary-continuity.js';
+import { meritsClinicalRetry, criticalDisagreement } from './critical-review.js';
 import { normalizeSpeakerTurns, diarizedTranscript } from './diarization.js';
 
 const $ = id => document.getElementById(id);
@@ -364,39 +366,55 @@ el.run.addEventListener('click', async () => {
     state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
     el.note.textContent = segmentationNote;
     setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
-    const worker = new Worker('./asr-worker.js?v=06-onnx-q4-20261126', { type: 'module' });
+    const worker = new Worker('./asr-worker.js?v=07-quality-20261126', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
       const range = ranges[i];
-      const chunk = to16kMonoRange(decoded, range.startSample, range.endSample);
+      const window = state.legacyFixed ? { startSample: range.startSample, endSample: range.endSample, overlapSeconds: 0 } : recognitionWindow(ranges, i);
+      const chunk = to16kMonoRange(decoded, window.startSample, window.endSample);
       setStatus(`Фрагмент ${i + 1} из ${ranges.length}. Выполняется локальная расшифровка…`);
       const firstResult = await workerRecognize(worker, { type: 'recognize', id: i, modelKey, samples: chunk }, state.abort.signal);
       let text = firstResult.text;
       let timedChunks = firstResult.chunks;
-      const seconds = (range.endSample - range.startSample) / TARGET_SAMPLE_RATE;
+      const seconds = (window.endSample - window.startSample) / TARGET_SAMPLE_RATE;
       const audit = repetitionAudit(text, seconds);
-      if (audit.suspicious) {
-        setStatus(`Подозрительный повтор на ${formatTime(range.startSeconds)}. Пробую повторное распознавание…`);
-        if (resolveModel(modelKey).family === 'whisper') {
-          // The input was transferred to the worker, so reconstruct it for one retry.
-          const retrySamples = to16kMonoRange(decoded, range.startSample, range.endSample);
-          try {
-            const second = await workerRecognize(worker, { type: 'recognize', id: `retry-${i}`, modelKey, samples: retrySamples, retry: true }, state.abort.signal);
+      let clinicalReview = false;
+      const isWhisper = resolveModel(modelKey).family === 'whisper';
+      // A single extra decode only on suspicious or clinically critical spans.
+      // Compare numeric, dosage, medication and negation facts without inventing corrections.
+      const safetyRetry = isWhisper && meritsClinicalRetry(text);
+      if (isWhisper && (audit.suspicious || safetyRetry)) {
+        setStatus('Проверяю спорный участок повторным распознаванием…');
+        const retrySamples = to16kMonoRange(decoded, window.startSample, window.endSample);
+        try {
+          const second = await workerRecognize(worker, { type: 'recognize', id: `retry-${i}`, modelKey, samples: retrySamples, retry: true }, state.abort.signal);
+          if (criticalDisagreement(text, second.text).length) clinicalReview = true;
+          if (audit.suspicious) {
             const choice = preferRetry(text, second.text, seconds);
             text = choice.text;
             if (choice.improved) timedChunks = second.chunks;
-          } catch (retryError) {
-            if (retryError?.name === 'AbortError') throw retryError;
-            // Failed retry must never stop the remaining hour-long transcription.
           }
-        }
-        if (repetitionAudit(text, seconds).suspicious) {
-          // Retain provenance, but never silently present a hallucination as a valid utterance.
-          text = `[ТРЕБУЕТ ПРОСЛУШИВАНИЯ: подозрительное повторение на ${formatTime(range.startSeconds)}] ${text.slice(0, 200)}`;
+          // If both runs are fluent but disagree, preserve the original words
+          // and refer to original audio. No confidence is inferred.
+        } catch (retryError) {
+          if (retryError?.name === 'AbortError') throw retryError;
+          clinicalReview = clinicalReview || safetyRetry;
         }
       }
-      state.segments.push({ startSeconds: range.startSeconds, endSeconds: range.endSeconds, text, timedChunks });
+      if (audit.suspicious && repetitionAudit(text, seconds).suspicious) {
+        text = `[ТРЕБУЕТ ПРОСЛУШИВАНИЯ: подозрительное повторение на ${formatTime(range.startSeconds)}] ${text.slice(0, 200)}`;
+      }
+      // Only remove words whose exact repetition at the forced seam is demonstrated.
+      // Keep disagreement verbatim and mark the segment for human listening.
+      const boundary = reconcileBoundary(state.segments.at(-1)?.text, text, window.overlapSeconds > 0);
+      text = boundary.text;
+      const segment = { startSeconds: range.startSeconds, endSeconds: range.endSeconds, text,
+        // Overlapped word timestamps refer to different origins; do not attach
+        // them to a wrong speaker until real word alignment is available.
+        timedChunks: window.overlapSeconds > 0 ? [] : timedChunks,
+        boundaryReview: boundary.requiresReview, clinicalReview };
+      state.segments.push(segment);
       renderSpeakers();
       el.transcript.value = buildTranscript(state.segments);
       setProgress(i + 1, ranges.length);
