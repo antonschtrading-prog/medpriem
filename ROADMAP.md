@@ -39,3 +39,5 @@
 1. Validate E2E runtime and diarization API/output; verify tests/Chrome. 2. Adapt upstream boundary stitching and word timing, then contextual reread and ROVER without replacing clinical facts. 3. Full audio benchmark and privacy checks. 4. Publish only validated preview; preserve 0.9.
 
 1.0: finish CI, browser runtime validation, real E2E and diarization benchmark. DP suggestions are conservative ROVER-style adaptation; full insertion voting and acoustic forced alignment remain research items.
+
+Independent CTC alignment: verify actual ONNX runtime, time accuracy and rejection rates on reference speech. No clinical use until validated.

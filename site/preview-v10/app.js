@@ -43,7 +43,7 @@ function updateActions() {
   el.checkpointSave.disabled = !state.file || !state.segments.length || !state.duration;
   el.checkpointFile.disabled = state.busy || !state.file;
   el.model.disabled = state.diarizationBusy || state.busy || state.preflightBusy;
-  $('dual-after').disabled=state.busy; $('third-after').disabled=state.busy;
+  $('dual-after').disabled=state.busy; $('third-after').disabled=state.busy; $('align-after').disabled=state.busy;
   el.preflight.disabled = state.busy || state.preflightBusy;
   el.speakerSave.disabled = !state.segments.length || state.busy;
   el.speakerAuto.disabled = !state.file || state.busy || state.diarizationBusy || !state.segments.length || !el.privacy.checked;
@@ -390,7 +390,7 @@ el.run.addEventListener('click', async () => {
     state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
     el.note.textContent = segmentationNote;
     setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
-    const worker = new Worker('./asr-worker.js?v=10-audit', { type: 'module' });
+    const worker = new Worker('./asr-worker.js?v=11-align', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
@@ -448,7 +448,7 @@ el.run.addEventListener('click', async () => {
     if ($('dual-after').checked && !state.legacyFixed) {
       const jobs=selectReviewJobs(state.segments,ranges,modelKey);
       if(jobs.length){
-        const verifier=new Worker('./asr-worker.js?v=10-audit', {type:'module'});
+        const verifier=new Worker('./asr-worker.js?v=11-align', {type:'module'});
         state.worker=verifier;
         try {
           for(const [j,job] of jobs.entries()){
@@ -478,7 +478,7 @@ el.run.addEventListener('click', async () => {
         const thirdKey=modelKey==='medium'?'turbo_ru':'medium';
         const thirdJobs=jobs.filter(j=>state.segments[j.index].dualReview?.status==='compared'&&state.segments[j.index].dualReview.differs&&j.modelKey!==thirdKey);
         if(thirdJobs.length){
-          const third=new Worker('./asr-worker.js?v=10-audit',{type:'module'});state.worker=third;
+          const third=new Worker('./asr-worker.js?v=11-align',{type:'module'});state.worker=third;
           try{
             for(const [k,j] of thirdJobs.entries()){
               setStatus('Третья модель: '+(k+1)+' / '+thirdJobs.length);
@@ -490,6 +490,34 @@ el.run.addEventListener('click', async () => {
         }
       }
       renderDualReview();
+    }
+    // Independent acoustic alignment, after all ASR workers are released.
+    if($('align-after').checked){
+      const aligner=new Worker('./alignment-worker.js?v=11',{type:'module'});state.worker=aligner;
+      let aligned=0,failed=0;
+      try{
+        for(let i=0;i<state.segments.length;i++){
+          const row=state.segments[i],range=ranges[i];
+          if(!range||!row.text.trim()||/\[ТРЕБУЕТ ПРОСЛУШИВАНИЯ|\[речь не распознана/i.test(row.text))continue;
+          setStatus('Акустическое выравнивание '+(i+1)+' / '+state.segments.length);
+          try{
+            const r=await new Promise((resolve,reject)=>{
+              const signal=state.abort.signal;
+              const clean=()=>{clearTimeout(timer);signal.removeEventListener('abort',abort);aligner.onmessage=null;aligner.onerror=null;};
+              const abort=()=>{clean();reject(new DOMException('Отменено','AbortError'));};
+              const timer=setTimeout(()=>{clean();reject(Error('Таймаут выравнивания'));},180000);
+              signal.addEventListener('abort',abort,{once:true});if(signal.aborted){abort();return;}
+              aligner.onerror=e=>{clean();reject(Error(e.message||'Ошибка выравнивания'));};
+              aligner.onmessage=({data})=>{if(data.id!==i)return;clean();if(data.type==='alignment-error')reject(Error(data.message));else resolve(data);};
+              aligner.postMessage({type:'align',id:i,text:row.text,samples:to16kMonoRange(decoded,range.startSample,range.endSample)});
+            });
+            const chunks=normalizeWindowChunks(r.chunks,row.text,range,range);
+            if(r.accepted&&chunks.length){row.timedChunks=chunks;row.alignment='ctc';aligned++;}
+            else{row.alignment='rejected';failed++;}
+          }catch(e){if(e?.name==='AbortError')throw e;failed++;row.alignment='failed';break;}
+        }
+      }finally{aligner.terminate();state.worker=null;}
+      $('alignment-status').textContent='Акустически выровнено '+aligned+' фрагментов; отклонено/ошибка '+failed+'. Остальные используют исходные метки при наличии.';
     }
     state.complete = true;
     state.imported = null;

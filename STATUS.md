@@ -62,3 +62,6 @@ Batch 4: native word timestamps retained across overlapping windows when exact t
 
 ## 1.0 browser smoke result
 Run 45908684759 SUCCESS: all three GigaAM engines returned Russian text and native timing; Diarization-JS returned valid intervals. However synthetic 8.4s audio was severely under-transcribed (3/1/1 words); both synthetic voices clustered as one. This is runtime smoke only, NOT accuracy or speaker separation validation. Publish experimental build for comparative testing per user instruction. Full forced alignment and full ROVER remain unimplemented; only conservative native timing and DP consensus implemented. No identifiable medical data.
+
+## Independent CTC alignment
+Added real CTC emission Viterbi alignment worker using plain GigaAM v3 CTC only as internal aligner; no selectable ASR model added. Transcript retained verbatim; unknown vocabulary, low acoustic posterior, impossible paths rejected. Native times retained on rejection; checkpoint records source. Synthetic DP tests added; browser runtime and accuracy not yet verified.
