@@ -59,3 +59,6 @@ Batch 2: native GigaAM word timestamps when text reconstruction matches; Whisper
 Batch 3: DP word alignment and conservative third-model consensus suggestions, contextual reread (separate text), model identifier export, diarization UI lock, Pages staging only current 1.0 and previous 0.9. Not full NIST ROVER port or independent acoustic alignment. CI and real inference pending. Prior batch CI 45906664422 PASS.
 
 Batch 4: native word timestamps retained across overlapping windows when exact text reconstruction succeeds; real Chromium smoke CI added for synthetic Russian speech (three GigaAM variants and Diarization-JS). No real accuracy claim, no medical data used. Batch 3 CI 45908176378 PASS. Publication gated on real browser smoke result.
+
+## 1.0 browser smoke result
+Run 45908684759 SUCCESS: all three GigaAM engines returned Russian text and native timing; Diarization-JS returned valid intervals. However synthetic 8.4s audio was severely under-transcribed (3/1/1 words); both synthetic voices clustered as one. This is runtime smoke only, NOT accuracy or speaker separation validation. Publish experimental build for comparative testing per user instruction. Full forced alignment and full ROVER remain unimplemented; only conservative native timing and DP consensus implemented. No identifiable medical data.
