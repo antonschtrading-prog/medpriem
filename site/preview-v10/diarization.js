@@ -8,7 +8,7 @@ export function normalizeSpeakerTurns(raw, durationSeconds) {
     const start = Math.max(0, Math.min(durationSeconds, Number(item.start)));
     const end = Math.max(0, Math.min(durationSeconds, Number(item.end)));
     const id = String(item.speaker);
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || !/^\d+$/.test(id)) continue;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || !id || id === 'undefined' || id === 'null') continue;
     if (!seen.has(id)) seen.set(id, seen.size + 1);
     turns.push({ startSeconds: start, endSeconds: end, speaker: seen.get(id) });
   }
@@ -22,7 +22,7 @@ export function speakerForWindow(start, end, turns) {
     if (overlap > 0) totals.set(t.speaker, (totals.get(t.speaker) || 0) + overlap);
   }
   const ranked = [...totals.entries()].sort((a,b) => b[1] - a[1]);
-  if (!ranked.length || ranked[0][1] < 0.4) return null;
+  if (!ranked.length || ranked[0][1] < Math.min(0.4,(end-start)*0.7)) return null;
   const total = ranked.reduce((sum, entry) => sum + entry[1], 0);
   return ranked[0][1] / total >= 0.94 ? ranked[0][0] : null;
 }

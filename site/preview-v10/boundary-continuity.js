@@ -1,3 +1,4 @@
+// Exact single-word seam rule adapted from GigaAMGUI src/core/asr/chunking.py (MIT); restricted to actual overlapped PCM and nonnumeric words.
 // Conservative continuity between two local ASR windows. No words are invented.
 export const CONTEXT_OVERLAP_SECONDS = 0.65;
 const words = text => String(text ?? '').match(/[\p{L}\p{N}]+/gu) || [];
@@ -20,13 +21,13 @@ export function recognitionWindow(ranges, index, sampleRate = 16000) {
 export function reconcileBoundary(previousText, currentText, hasOverlap) {
   const prior = words(previousText);
   const next = words(currentText);
-  if (!hasOverlap || prior.length < 2 || next.length < 2)
+  if (!hasOverlap || prior.length < 1 || next.length < 1)
     return { text: currentText, removedWords: 0, requiresReview: false };
   let match = 0;
-  for (let count = Math.min(12, prior.length, next.length); count >= 2; count--) {
+  for (let count = Math.min(12, prior.length, next.length); count >= 1; count--) {
     const tail = prior.slice(-count).map(normalized);
     const head = next.slice(0, count).map(normalized);
-    if (tail.every((v, i) => v === head[i])) { match = count; break; }
+    if ((count>1 || (tail[0].length>=4 && !/\d/u.test(tail[0]))) && tail.every((v, i) => v === head[i])) { match = count; break; }
   }
   if (!match) return { text: currentText, removedWords: 0, requiresReview: true };
   const boundaries = [...String(currentText).matchAll(/[\p{L}\p{N}]+/gu)];

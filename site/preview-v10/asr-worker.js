@@ -68,7 +68,7 @@ self.onmessage = async ({ data }) => {
     self.postMessage({ type: 'engine-state', state: 'running' });
     // CTC models do not support Whisper's language/task/decoding generation options.
     const options = model.family === 'whisper'
-      ? { language: 'russian', task: 'transcribe', return_timestamps: true,
+      ? { language: 'russian', task: 'transcribe', return_timestamps: 'word',
           ...(data.retry ? { no_repeat_ngram_size: 4, repetition_penalty: 1.12, max_new_tokens: 160 } : {}) }
       : {};
     let result;

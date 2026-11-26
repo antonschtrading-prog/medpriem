@@ -252,7 +252,7 @@ el.speakerAuto.addEventListener('click', async () => {
       el.speakerStatus.textContent = 'Длинная запись: для анализа голосов понадобится дополнительная память и загрузка модели. На телефоне возможна остановка вкладки.';
     }
     const samples = to16kMono(decoded);
-    worker = new Worker('./diarization-worker.js', {type:'module'}); // Classic worker required by Emscripten.
+    worker = new Worker('./diarization-worker.js', {type:'module'}); // Diarization-JS module worker.
     state.diarizationWorker = worker;
     const raw = await new Promise((resolve,reject) => {
       worker.onerror = event => reject(new Error(event.message || 'Ошибка запуска движка голосов.'));

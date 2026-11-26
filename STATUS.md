@@ -53,3 +53,5 @@ CI 0.8 подтверждён: run 45860476153. Добавлен адаптер 
 
 ## 1.0 integration batch 1
 0.9 Pages confirmed success 45890271627; user confirmed real GigaAM RNNT transcript. Separate preview-v10: restricted model registry/menu, explicit E2E artifacts, Diarization-JS experimental adapter and attribution. Not yet verified real E2E/diarization, browser memory, boundary/word alignment or ROVER. No publication in this batch.
+
+Batch 2: native GigaAM word timestamps when text reconstruction matches; Whisper word timestamp request; string speaker IDs; conservative exact single-word seam fix adapted from GigaAMGUI (MIT notice); five contract tests and syntax checks. Overlapped word alignment, contextual reread and ROVER remain outstanding. No real inference verification.
