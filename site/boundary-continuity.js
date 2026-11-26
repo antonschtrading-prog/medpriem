@@ -1,6 +1,6 @@
 // Conservative continuity between two local ASR windows. No words are invented.
 export const CONTEXT_OVERLAP_SECONDS = 0.65;
-const words = text => String(text ?? '').match(/[\\p{L}\\p{N}]+/gu) || [];
+const words = text => String(text ?? '').match(/[\p{L}\p{N}]+/gu) || [];
 const normalized = t => t.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
 
 // Keep checkpoint ranges non-overlapping; overlap only the PCM passed into ASR.
@@ -29,7 +29,7 @@ export function reconcileBoundary(previousText, currentText, hasOverlap) {
     if (tail.every((v, i) => v === head[i])) { match = count; break; }
   }
   if (!match) return { text: currentText, removedWords: 0, requiresReview: true };
-  const boundaries = [...String(currentText).matchAll(/[\\p{L}\\p{N}]+/gu)];
+  const boundaries = [...String(currentText).matchAll(/[\p{L}\p{N}]+/gu)];
   const after = boundaries[match - 1].index + boundaries[match - 1][0].length;
-  return { text: currentText.slice(after).replace(/^[\\s,.;:!?…—–-]+/u, ''), removedWords: match, requiresReview: false };
+  return { text: currentText.slice(after).replace(/^[\s,.;:!?…—–-]+/u, ''), removedWords: match, requiresReview: false };
 }
