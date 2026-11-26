@@ -31,6 +31,7 @@
       </label>
       <p class="tiny">E2E-модели включают пунктуацию и нормализацию. Контрольная модель загружается последовательно. Только обезличенные записи.</p>
       <label class="consent"><input type="checkbox" id="dual-after" checked><span>Перепроверить подозрительные интервалы второй моделью (последовательно, без двух моделей одновременно).</span></label>
+      <label class="consent"><input type="checkbox" id="third-after"><span>Третья модель при расхождении (показывает совпавшие альтернативы, не меняет текст).</span></label>
       <label class="consent"><input type="checkbox" id="speaker-after"><span>Экспериментально: автоматически определить говорящих после расшифровки. Потребует дополнительной памяти и загрузки локальной модели. Для длинных записей и iPhone сначала используйте короткий тест.</span></label>
       <label class="consent"><input type="checkbox" id="privacy-agree"><span>Это тестовая запись без реальных данных пациента. Понимаю, что модель и библиотека загружаются из внешних источников.</span></label>
       <div class="review-box"><button type="button" class="secondary" id="engine-preflight">Проверить готовность движков</button><p id="engine-preflight-result" class="status" role="status" aria-live="polite">Проверка не запускалась. Она проверяет Silero и доступность модели, но не точность распознавания.</p></div>

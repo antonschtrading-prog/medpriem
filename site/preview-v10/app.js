@@ -1,4 +1,4 @@
-import { selectReviewJobs, compareReview } from './dual-review.js';
+import { selectReviewJobs, compareReview, contextualWindow, attachThird } from './dual-review.js';
 import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
 import { pauseAwareRanges } from './pause-segmentation.js';
 import { sileroPauseRanges } from './silero-segmentation.js';
@@ -33,16 +33,16 @@ function setProgress(done, total) {
   el.count.textContent = total ? `${done} / ${total} фрагментов (${pct}%)` : '';
 }
 function updateActions() {
-  el.run.disabled = !state.file || state.busy || state.preflightBusy || !el.privacy.checked;
+  el.run.disabled = !state.file || state.diarizationBusy || state.busy || state.preflightBusy || !el.privacy.checked;
   el.cancel.disabled = !state.busy;
-  el.rerun.disabled = !state.file || state.busy || state.preflightBusy || !state.segments.length || !el.privacy.checked;
+  el.rerun.disabled = !state.file || state.diarizationBusy || state.busy || state.preflightBusy || !state.segments.length || !el.privacy.checked;
   el.save.disabled = !el.transcript.value.trim();
-  el.audio.disabled = state.busy;
+  el.audio.disabled = state.busy || state.diarizationBusy;
   el.privacy.disabled = state.busy;
   el.checkpointSave.disabled = !state.file || !state.segments.length || !state.duration;
   el.checkpointFile.disabled = state.busy || !state.file;
-  el.model.disabled = state.busy || state.preflightBusy;
-  $('dual-after').disabled=state.busy;
+  el.model.disabled = state.diarizationBusy || state.busy || state.preflightBusy;
+  $('dual-after').disabled=state.busy; $('third-after').disabled=state.busy;
   el.preflight.disabled = state.busy || state.preflightBusy;
   el.speakerSave.disabled = !state.segments.length || state.busy;
   el.speakerAuto.disabled = !state.file || state.busy || state.diarizationBusy || !state.segments.length || !el.privacy.checked;
@@ -215,6 +215,10 @@ function renderDualReview(){
     play.onclick=()=>{el.play.currentTime=r.startSeconds;el.play.play().catch(()=>{});};
     const detail=document.createElement('span');
     detail.textContent=r.status==='failed'?' Проверка не завершена.': ' '+(r.differs?'Расхождение':'Совпадение текста (не доказательство точности)')+' · '+r.modelKey+' · Основная: '+r.primary+' · Контрольная: '+r.alternate+(r.critical.length?' · Критические отличия: '+r.critical.join(', '):'');
+    if(r.wordDifferences?.length)detail.textContent+=' · Отличия: '+r.wordDifferences.map(x=>(x.primary??'∅')+' → '+(x.alternate??'∅')).join('; ');
+    if(r.contextText)detail.textContent+=' · Расширенный контекст (не прямое сравнение): '+r.contextText;
+    if(r.thirdText)detail.textContent+=' · Третья модель: '+r.thirdText;
+    if(r.suggestions?.length)detail.textContent+=' · Совпадение двух альтернатив: '+r.suggestions.map(x=>x.primary+' → '+x.suggestion).join('; ')+' (проверить по аудио)';
     li.append(play,detail);list.append(li);
   }
   $('dual-status').textContent='Проверено '+results.filter(r=>r.status==='compared').length+' интервалов. Непроверенные интервалы не считаются достоверными.';
@@ -282,7 +286,7 @@ el.speakerExportAuto.addEventListener('click', () => {
   if (!state.turns.length || !state.file || !state.segments.length) return;
   const duration = state.duration || Math.max(...state.turns.map(t => t.endSeconds));
   const body = diarizedTranscript(state.segments, state.turns, duration, formatTime);
-  downloadText(exportTranscriptText({fileName:state.file.name,text:body,partial:!state.complete,speakersDetected:true}), `${cleanFilename(state.file.name)}_говорящие_автоматически.txt`);
+  downloadText(exportTranscriptText({ modelKey:state.modelKey,fileName:state.file.name,text:body,partial:!state.complete,speakersDetected:true}), `${cleanFilename(state.file.name)}_говорящие_автоматически.txt`);
 });
 
 function renderSpeakers() {
@@ -305,7 +309,7 @@ function renderSpeakers() {
 el.speakerSave.addEventListener('click', () => {
   if (!state.segments.length || !state.file) return;
   const body = state.segments.map(segment => `[${formatTime(segment.startSeconds)}] ${segment.speaker ? `Говорящий ${segment.speaker} (размечено вручную)` : 'Говорящий не определён'}: ${segment.text}`).join('\n\n');
-  downloadText(exportTranscriptText({fileName:state.file.name,text:body,partial:!state.complete}), `${cleanFilename(state.file.name)}_говорящие_ручная_разметка.txt`);
+  downloadText(exportTranscriptText({ modelKey:state.modelKey,fileName:state.file.name,text:body,partial:!state.complete}), `${cleanFilename(state.file.name)}_говорящие_ручная_разметка.txt`);
 });
 
 el.rerun.addEventListener('click', () => {
@@ -455,6 +459,13 @@ el.run.addEventListener('click', async () => {
             try {
               const result=await workerRecognize(verifier,{type:'recognize',id:'verify-'+j,modelKey:job.modelKey,samples:to16kMonoRange(decoded,job.startSample,job.endSample)},state.abort.signal);
               s.dualReview=compareReview(s.rawRecognition??s.text,result.text,job);
+              if(s.dualReview.differs && (s.boundaryReview || s.dualReview.critical.length)){
+                const w=contextualWindow(job,ranges.at(-1).endSample);
+                if(w.startSample!==job.startSample||w.endSample!==job.endSample){
+                  const ctx=await workerRecognize(verifier,{type:'recognize',id:'context-'+j,modelKey:job.modelKey,samples:to16kMonoRange(decoded,w.startSample,w.endSample)},state.abort.signal);
+                  s.dualReview.contextText=ctx.text;
+                }
+              }
             } catch(e) {
               if(e?.name==='AbortError') throw e;
               s.dualReview={status:'failed',modelKey:job.modelKey,startSeconds:job.startSample/16000,endSeconds:job.endSample/16000,reasons:job.reasons};
@@ -463,6 +474,21 @@ el.run.addEventListener('click', async () => {
             }
           }
         } finally {verifier.terminate();state.worker=null;}
+      }
+      if($('third-after').checked){
+        const thirdKey=modelKey==='medium'?'turbo_ru':'medium';
+        const thirdJobs=jobs.filter(j=>state.segments[j.index].dualReview?.status==='compared'&&state.segments[j.index].dualReview.differs&&j.modelKey!==thirdKey);
+        if(thirdJobs.length){
+          const third=new Worker('./asr-worker.js?v=10-audit',{type:'module'});state.worker=third;
+          try{
+            for(const [k,j] of thirdJobs.entries()){
+              setStatus('Третья модель: '+(k+1)+' / '+thirdJobs.length);
+              const row=state.segments[j.index];
+              try{const r=await workerRecognize(third,{type:'recognize',id:'third-'+k,modelKey:thirdKey,samples:to16kMonoRange(decoded,j.startSample,j.endSample)},state.abort.signal);row.dualReview=attachThird(row.dualReview,r.text,thirdKey);}
+              catch(e){if(e?.name==='AbortError')throw e;break;}
+            }
+          }finally{third.terminate();state.worker=null;}
+        }
       }
       renderDualReview();
     }
@@ -512,7 +538,7 @@ el.save.addEventListener('click', () => {
   if (!text) return;
   // If user edited the field, completion status is conservatively reset to incomplete.
   const partial = !state.complete;
-  const result = exportTranscriptText({ fileName: state.file?.name, text, partial });
+  const result = exportTranscriptText({ modelKey:state.modelKey, fileName: state.file?.name, text, partial });
   downloadText(result, `${cleanFilename(state.file?.name)}_расшифровка.txt`);
   setStatus('Текст подготовлен для сохранения в «Файлы» или загрузки браузера.');
 });

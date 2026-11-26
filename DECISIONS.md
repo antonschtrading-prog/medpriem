@@ -14,3 +14,5 @@
 10. GigaAM допускается как экспериментальный браузерный движок; Medium/Turbo Russian — контрольная пара, GigaAM — независимый кандидат. Смена основной модели только после сравнения по исходному звуку.
 
 11. Approved 1.0: retain five candidates only; reuse upstream open-source code where possible, keep 0.9 rollback, no publication until integration checks. No invented timing or automatic replacement of critical facts.
+
+12. Publish only current and previous preview; keep old source in Git history/test fixtures, not on Pages. Consensus suggestions never overwrite clinical facts.
