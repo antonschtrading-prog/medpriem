@@ -50,3 +50,6 @@
 
 ## Preview 0.9
 CI 0.8 подтверждён: run 45860476153. Добавлен адаптер GigaAM, preflight списка файлов, выбор модели, тесты контракта с заглушкой, обновлена контрольная пара Medium/Turbo Russian. Реальный inference и лицензии весов требуют проверки; публикация не подтверждена.
+
+## 1.0 integration batch 1
+0.9 Pages confirmed success 45890271627; user confirmed real GigaAM RNNT transcript. Separate preview-v10: restricted model registry/menu, explicit E2E artifacts, Diarization-JS experimental adapter and attribution. Not yet verified real E2E/diarization, browser memory, boundary/word alignment or ROVER. No publication in this batch.

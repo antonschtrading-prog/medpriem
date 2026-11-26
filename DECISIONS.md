@@ -12,3 +12,5 @@
 9. В экспериментах допускается Sherpa-ONNX WASM как независимый браузерный движок автоматической диаризации, только после проверки библиотек, сетевого поведения и лицензий. Согласованная целевая функция — точное автоматическое разделение реплик, а не разметка 25-секундных кусков.
 
 10. GigaAM допускается как экспериментальный браузерный движок; Medium/Turbo Russian — контрольная пара, GigaAM — независимый кандидат. Смена основной модели только после сравнения по исходному звуку.
+
+11. Approved 1.0: retain five candidates only; reuse upstream open-source code where possible, keep 0.9 rollback, no publication until integration checks. No invented timing or automatic replacement of critical facts.

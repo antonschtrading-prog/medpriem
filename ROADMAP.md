@@ -34,3 +34,6 @@
 
 ## 0.9
 Подтвердить реальную загрузку и русский inference GigaAM на Mac M1, проверить лицензии весов, сопоставить результаты с имеющимися расшифровками; затем проверять акустическую диаризацию. Не считать тест заглушки реальным распознаванием.
+
+## 1.0 gates (supersede previous experimental model list)
+1. Validate E2E runtime and diarization API/output; verify tests/Chrome. 2. Adapt upstream boundary stitching and word timing, then contextual reread and ROVER without replacing clinical facts. 3. Full audio benchmark and privacy checks. 4. Publish only validated preview; preserve 0.9.
