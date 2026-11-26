@@ -1,5 +1,6 @@
 // Russian-language ASR candidates. Experiments must be judged on real audio.
 export const ASR_MODELS = Object.freeze({
+  gigaam: { id: 'istupakov/gigaam-v3-onnx', label: 'GigaAM v3 RNNT · русский · экспериментально', family: 'gigaam', tier: 'high', experimental: true },
   tiny: { id: 'onnx-community/whisper-tiny', label: 'Whisper Tiny', family: 'whisper', tier: 'low' },
   base: { id: 'onnx-community/whisper-base', label: 'Whisper Base', family: 'whisper', tier: 'medium' },
   small: { id: 'onnx-community/whisper-small', label: 'Whisper Small', family: 'whisper', tier: 'high' },

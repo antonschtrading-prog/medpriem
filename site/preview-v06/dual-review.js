@@ -2,7 +2,7 @@ import { russianTokens } from './quality.js';
 import { criticalDisagreement, meritsClinicalRetry } from './critical-review.js';
 import { recognitionWindow } from './boundary-continuity.js';
 export function selectReviewJobs(segments, ranges, primary, legacy=false) {
-  const modelKey=primary==='xlsr_ru'?'small':'xlsr_ru';
+  const modelKey=primary==='gigaam'?'medium':primary==='medium'?'turbo_ru':primary==='turbo_ru'?'medium':primary==='xlsr_ru'?'small':'gigaam';
   return segments.flatMap((s,i)=>{
     const r=ranges[i]; if(!r || s.dualReview?.status==='compared') return [];
     const text=String(s.rawRecognition ?? s.text ?? '');
@@ -24,7 +24,7 @@ export function compareReview(primary, alternate, job) {
     differs:a.join(' ')!==b.join(' '),reasons:job.reasons};
 }
 export function sanitizeReview(r) {
-  if(!r || !['compared','failed'].includes(r.status) || !['small','xlsr_ru'].includes(r.modelKey) ||
+  if(!r || !['compared','failed'].includes(r.status) || !['small','xlsr_ru','medium','turbo_ru','gigaam'].includes(r.modelKey) ||
     !Number.isFinite(r.startSeconds)||!Number.isFinite(r.endSeconds)||r.startSeconds<0||r.endSeconds<=r.startSeconds||r.endSeconds-r.startSeconds>30.1) return undefined;
   return {status:r.status,modelKey:r.modelKey,startSeconds:r.startSeconds,endSeconds:r.endSeconds,
     primary:String(r.primary??'').slice(0,10000),alternate:String(r.alternate??'').slice(0,10000),

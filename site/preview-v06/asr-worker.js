@@ -1,8 +1,9 @@
+import { loadGigaam } from './gigaam.js';
 // Browser-only inference. Do not use identifiable patient recordings until third-party
 // scripts/weights are self-hosted, audited, and network egress is restricted.
 import { resolveModel } from './model-options.js';
 const ENGINE_VERSION = '3.8.1';
-const BUILD_ID = '06-onnx-q4-20261126';
+const BUILD_ID = '09-gigaam-20261126';
 let transcriber = null;
 let loadedModelKey = null;
 let busy = false;
@@ -13,6 +14,10 @@ async function init(modelKey) {
   if (transcriber?.dispose) await transcriber.dispose();
   transcriber = null;
   loadedModelKey = null;
+  if (model.family === 'gigaam') {
+    self.postMessage({type:'model-config',modelKey,encoderDtype:'int8',decoderDtype:'int8',build:BUILD_ID});
+    transcriber=await loadGigaam();loadedModelKey=modelKey;return transcriber;
+  }
   const { pipeline } = await import(`https://cdn.jsdelivr.net/npm/@huggingface/transformers@${ENGINE_VERSION}`);
   const progress_callback = info => {
     if (info?.status === 'progress') self.postMessage({

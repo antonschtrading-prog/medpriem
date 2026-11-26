@@ -385,7 +385,7 @@ el.run.addEventListener('click', async () => {
     state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
     el.note.textContent = segmentationNote;
     setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
-    const worker = new Worker('./asr-worker.js?v=07-quality-20261126', { type: 'module' });
+    const worker = new Worker('./asr-worker.js?v=09-gigaam', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
@@ -445,7 +445,7 @@ el.run.addEventListener('click', async () => {
     if ($('dual-after').checked && !state.legacyFixed) {
       const jobs=selectReviewJobs(state.segments,ranges,modelKey);
       if(jobs.length){
-        const verifier=new Worker('./asr-worker.js?v=08-dual', {type:'module'});
+        const verifier=new Worker('./asr-worker.js?v=09-gigaam', {type:'module'});
         state.worker=verifier;
         try {
           for(const [j,job] of jobs.entries()){
