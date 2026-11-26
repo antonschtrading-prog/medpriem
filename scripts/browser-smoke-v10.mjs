@@ -38,7 +38,8 @@ try{
   }catch(e){outcomes.push({key:'diarization',ok:false,error:e.message});}
   try{
    const r=await ask('./alignment-worker.js',{type:'align',id:'forced',text:'добрый день'},'aligned');
-   outcomes.push({key:'forced-alignment',ok:r.accepted&&r.chunks.length===2,accepted:r.accepted,chunks:r.chunks,diagnostic:r.diagnostic});
+   const bad=await ask('./alignment-worker.js',{type:'align',id:'negative',text:'фиолетовый трактор космонавт'},'aligned');
+   outcomes.push({key:'forced-alignment',ok:r.accepted&&r.chunks.length===2&&r.chunks[0].timestamp[0]<2&&r.chunks[1].timestamp[1]<4.67&&!bad.accepted,accepted:r.accepted,chunks:r.chunks,diagnostic:r.diagnostic,negativeRejected:!bad.accepted});
   }catch(e){outcomes.push({key:'forced-alignment',ok:false,error:e.message});}
   return outcomes;
  },audio);

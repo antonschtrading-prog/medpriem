@@ -8,7 +8,7 @@ export function tokenizeForAlignment(text,tokens,blank){
  const groups=[];const ids=[];
  for(const m of matches){
   const word=m[0].toLowerCase();
-  const variants=['▁'+word,word,'▁'+word.replace(/ё/g,'е'),word.replace(/ё/g,'е')];let found=null;
+  const variants=groups.length?['▁'+word,word,'▁'+word.replace(/ё/g,'е'),word.replace(/ё/g,'е')]:[word,'▁'+word,word.replace(/ё/g,'е'),'▁'+word.replace(/ё/g,'е')];let found=null;
   for(const w of variants){
    const dp=Array(w.length+1).fill(null);dp[0]=[];
    for(let i=0;i<w.length;i++)if(dp[i])for(let n=1;n<=Math.min(max,w.length-i);n++){
@@ -40,7 +40,9 @@ export function forceAlign(encoded,ids,blank,seconds,{minPosterior=.08,minMeanPo
   for(let s=0;s<states;s++){
    let best=prev[s],step=0;if(s&&prev[s-1]>best){best=prev[s-1];step=1;}
    if(s>1&&s%2&&labels[s]!==labels[s-2]&&prev[s-2]>best){best=prev[s-2];step=2;}
-   next[s]=best+at(t,labels[s])-norm[t];back[t*states+s]=step;
+   // Outside the transcript, allow unrelated audio without forcing it to blank.
+   const emission=(s===0||s===states-1)?max:at(t,labels[s]);
+   next[s]=best+emission-norm[t];back[t*states+s]=step;
   }prev=next;
  }
  let s=prev[states-1]>=prev[states-2]?states-1:states-2;if(!Number.isFinite(prev[s]))return null;
