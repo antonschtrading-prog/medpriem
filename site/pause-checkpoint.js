@@ -16,14 +16,14 @@ export function createPauseCheckpoint({ file, durationSeconds, modelKey, ranges,
         endSample <= startSample || (endSample - startSample) > 16000 * 29.6 ||
         endSample > Math.ceil(durationSeconds * 16000) + 2) throw new Error('Нарушены границы фрагментов.');
     previousEnd = endSample;
-    return { startSample, endSample, startSeconds: startSample / 16000, endSeconds: endSample / 16000 };
+    return { startSample, endSample, startSeconds: startSample / 16000, endSeconds: endSample / 16000, forcedCut: r.forcedCut === true };
   });
   if (Math.abs(previousEnd / 16000 - durationSeconds) > 0.2) throw new Error('Запись не покрыта фрагментами полностью.');
   const rows = segments.map((s, i) => {
     if (!s || Math.abs(s.startSeconds - checkedRanges[i].startSeconds) > 0.03 ||
         typeof s.text !== 'string' || s.text.length > 10000) throw new Error('Некорректная последовательность расшифровки.');
     return { startSeconds: s.startSeconds, text: s.text,
-      timedChunks: Array.isArray(s.timedChunks) ? s.timedChunks : [] };
+      timedChunks: Array.isArray(s.timedChunks) ? s.timedChunks : [], boundaryReview: s.boundaryReview === true };
   });
   return { format: 'medpriem-local-checkpoint', version: PAUSE_CHECKPOINT_VERSION,
     segmentation: SEGMENTATION_VERSION, source: sourceIdentity(file), durationSeconds, modelKey,
