@@ -34,7 +34,26 @@ export async function checkSileroRuntime() {
   for await (const _turn of detector.run(samples, 16000)) windows++;
   return { checkedSeconds: 2, speechWindows: windows };
 }
-export function rangesFromSpeechIntervals(speech, sampleCount, sampleRate = 16000) {
+// If no VAD pause exists, choose the lowest-energy *nearby* cut, not an arbitrary
+// syllable at exactly 29 seconds. Keep forcedCut=true for transparent review.
+export function chooseLowEnergyCut(samples, startSample, maximumEnd, sampleRate = 16000) {
+  if (!(samples instanceof Float32Array)) return maximumEnd;
+  const from = Math.max(startSample + Math.round(24 * sampleRate), startSample + 1);
+  const to = Math.min(maximumEnd - Math.round(0.25 * sampleRate), samples.length);
+  if (to <= from) return maximumEnd;
+  const hop = Math.round(0.08 * sampleRate), half = Math.round(0.06 * sampleRate);
+  let best = maximumEnd, bestEnergy = Infinity;
+  for (let center = from; center <= to; center += hop) {
+    let energy = 0, count = 0;
+    for (let i = Math.max(0, center-half); i < Math.min(samples.length,center+half); i += 4) {
+      energy += samples[i] * samples[i]; count++;
+    }
+    energy = energy / Math.max(1,count);
+    if (energy < bestEnergy) { bestEnergy=energy; best=center; }
+  }
+  return best;
+}
+export function rangesFromSpeechIntervals(speech, sampleCount, sampleRate = 16000, samples = null) {
   if (!Number.isInteger(sampleCount) || sampleCount <= 0) return [];
   const totalSeconds = sampleCount / sampleRate;
   const valid = speech.filter(s => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start)
@@ -50,7 +69,7 @@ export function rangesFromSpeechIntervals(speech, sampleCount, sampleRate = 1600
     const at = from / sampleRate, maxEnd = Math.min(totalSeconds, at + 29);
     const best = quietPoints.filter(t => t >= at + 10 && t <= maxEnd)
       .sort((a,b) => Math.abs(a - (at + 22)) - Math.abs(b - (at + 22)))[0];
-    let end = Math.min(sampleCount, Math.round((best ?? maxEnd) * sampleRate));
+    let end = Math.min(sampleCount, best !== undefined ? Math.round(best * sampleRate) : chooseLowEnergyCut(samples, from, Math.round(maxEnd * sampleRate), sampleRate));
     if (sampleCount - end > 0 && sampleCount - end < sampleRate / 2) end = sampleCount;
     if (end <= from) throw new Error('Ошибка границ Silero VAD.');
     ranges.push({ startSample: from, endSample: end, startSeconds: from / sampleRate,
@@ -72,5 +91,5 @@ export async function sileroPauseRanges(decoded) {
     speech.push({ start, end });
   }
   if (!speech.length) throw new Error('Silero не обнаружил речевых интервалов.');
-  return { ranges: rangesFromSpeechIntervals(speech, samples.length), speechCount: speech.length };
+  return { ranges: rangesFromSpeechIntervals(speech, samples.length, 16000, samples), speechCount: speech.length };
 }
