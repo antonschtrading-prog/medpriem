@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {ASR_MODELS} from '../site/preview-v10/model-options.js';
+import {checkGigaam,nativeChunks} from '../site/preview-v10/gigaam.js';
+import {reconcileBoundary} from '../site/preview-v10/boundary-continuity.js';
+import {normalizeSpeakerTurns,speakerForWindow} from '../site/preview-v10/diarization.js';
+test('exact five choices',()=>assert.deepEqual(Object.keys(ASR_MODELS),['gigaam','gigaam_e2e_rnnt','gigaam_e2e_ctc','medium','turbo_ru']));
+test('E2E CTC checks distinct weights',async()=>{const r=await checkGigaam(async()=>({ok:true,json:async()=>['config.json','v3_e2e_ctc_vocab.txt','v3_e2e_ctc.int8.onnx'].map(path=>({path}))}),'gigaam_e2e_ctc');assert.equal(r.ready,true);});
+test('native word timings only when valid',()=>{assert.equal(nativeChunks({text:'да',words:[{word:'да',start:0,end:.2}]}).length,1);assert.deepEqual(nativeChunks({text:'нет',words:[{word:'да',start:0,end:.2}]}),[]);});
+test('single word seam with real overlap only',()=>{assert.equal(reconcileBoundary('это диалог','диалог дальше',true).text,'дальше');assert.equal(reconcileBoundary('это диалог','диалог дальше',false).text,'диалог дальше');assert.equal(reconcileBoundary('доза 1000','1000 мг',true).text,'1000 мг');});
+test('string speaker labels and short words',()=>{const turns=normalizeSpeakerTurns([{speaker:'SPEAKER_00',start:0,end:2}],3);assert.equal(turns.length,1);assert.equal(speakerForWindow(0,.15,turns),1);});

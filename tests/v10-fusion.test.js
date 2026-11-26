@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {wordDifferences,consensus} from '../site/preview-v10/fusion.js';import {contextualWindow,compareReview,attachThird,sanitizeReview} from '../site/preview-v10/dual-review.js';
+test('word alignment handles insertion',()=>assert.deepEqual(wordDifferences('это тест','это новый тест'),[{primary:null,alternate:'новый'}]));
+test('two alternative votes suggest but never replace',()=>assert.deepEqual(consensus('доза пять мг','доза десять мг','доза десять мг'),[{index:1,primary:'пять',suggestion:'десять',votes:2}]));
+test('context bounded to audio and model limit',()=>assert.deepEqual(contextualWindow({startSample:16000,endSample:32000},48000),{startSample:0,endSample:48000}));
+test('review suggestions preserved',()=>{let r=compareReview('доза пять мг','доза десять мг',{modelKey:'turbo_ru',startSample:0,endSample:32000,reasons:[]});r=attachThird(r,'доза десять мг','medium');assert.equal(sanitizeReview(r).suggestions.length,1);assert.equal(r.primary,'доза пять мг');});

@@ -50,3 +50,15 @@
 
 ## Preview 0.9
 CI 0.8 подтверждён: run 45860476153. Добавлен адаптер GigaAM, preflight списка файлов, выбор модели, тесты контракта с заглушкой, обновлена контрольная пара Medium/Turbo Russian. Реальный inference и лицензии весов требуют проверки; публикация не подтверждена.
+
+## 1.0 integration batch 1
+0.9 Pages confirmed success 45890271627; user confirmed real GigaAM RNNT transcript. Separate preview-v10: restricted model registry/menu, explicit E2E artifacts, Diarization-JS experimental adapter and attribution. Not yet verified real E2E/diarization, browser memory, boundary/word alignment or ROVER. No publication in this batch.
+
+Batch 2: native GigaAM word timestamps when text reconstruction matches; Whisper word timestamp request; string speaker IDs; conservative exact single-word seam fix adapted from GigaAMGUI (MIT notice); five contract tests and syntax checks. Overlapped word alignment, contextual reread and ROVER remain outstanding. No real inference verification.
+
+Batch 3: DP word alignment and conservative third-model consensus suggestions, contextual reread (separate text), model identifier export, diarization UI lock, Pages staging only current 1.0 and previous 0.9. Not full NIST ROVER port or independent acoustic alignment. CI and real inference pending. Prior batch CI 45906664422 PASS.
+
+Batch 4: native word timestamps retained across overlapping windows when exact text reconstruction succeeds; real Chromium smoke CI added for synthetic Russian speech (three GigaAM variants and Diarization-JS). No real accuracy claim, no medical data used. Batch 3 CI 45908176378 PASS. Publication gated on real browser smoke result.
+
+## 1.0 browser smoke result
+Run 45908684759 SUCCESS: all three GigaAM engines returned Russian text and native timing; Diarization-JS returned valid intervals. However synthetic 8.4s audio was severely under-transcribed (3/1/1 words); both synthetic voices clustered as one. This is runtime smoke only, NOT accuracy or speaker separation validation. Publish experimental build for comparative testing per user instruction. Full forced alignment and full ROVER remain unimplemented; only conservative native timing and DP consensus implemented. No identifiable medical data.

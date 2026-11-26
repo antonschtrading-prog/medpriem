@@ -25,3 +25,6 @@
 
 ## Preview 0.9
 Экспериментальный браузерный GigaAM v3 RNNT через onnx-asr-web 0.1.3 (MIT), ONNX WASM, закреплённая ревизия весов. Без вымышленных пословных меток. Используются внешние зависимости, только обезличенное аудио до аудита.
+
+## 1.0 experimental
+Separate site/preview-v10 preserves 0.9. Five selectable models: GigaAM RNNT/E2E RNNT/E2E CTC, Medium, Turbo Russian. Diarization-JS candidate. No clinical deployment.
