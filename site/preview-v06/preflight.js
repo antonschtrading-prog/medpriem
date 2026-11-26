@@ -1,9 +1,11 @@
+import { checkGigaam } from './gigaam.js';
 // Small preflight requests inspect manifests only; no audio samples ever leave the browser.
 import { resolveModel } from './model-options.js';
 import { checkSileroRuntime } from './silero-segmentation.js';
 
 export async function checkModelManifest(modelKey, fetcher = fetch) {
   const { id, family } = resolveModel(modelKey);
+  if(family==='gigaam')return checkGigaam(fetcher);
   const turbo = modelKey === 'turbo' || modelKey === 'turbo_ru';
   const url = 'https://huggingface.co/' + id + '/resolve/main/config.json';
   const response = await fetcher(url, { method: 'GET', cache: 'no-store' });
@@ -41,7 +43,7 @@ export async function runEnginePreflight(modelKey, update = () => {}) {
   try {
     const result = await checkModelManifest(modelKey);
     checks.push({ name: 'ASR: выбранные ONNX-файлы', ok: result.ready,
-      details: result.id + ', тип ' + result.type + (result.turbo ? ', q4 encoder=' + result.q4Encoder + ', q4 decoder=' + result.q4Decoder : result.family === 'ctc' ? ', q8 CTC model=' + result.singleModel : ', q8 encoder=' + result.encoder + ', decoder=' + result.decoder) + '. Реальное распознавание НЕ проверено.' });
+      details: result.id + ', тип ' + result.type + (result.family==='gigaam' ? ', отсутствуют: '+(result.missing.join(', ')||'нет') : result.turbo ? ', q4 encoder=' + result.q4Encoder + ', q4 decoder=' + result.q4Decoder : result.family === 'ctc' ? ', q8 CTC model=' + result.singleModel : ', q8 encoder=' + result.encoder + ', decoder=' + result.decoder) + '. Реальное распознавание НЕ проверено.' });
   } catch (error) {
     checks.push({ name: 'ASR: выбранные ONNX-файлы', ok: false, details: String(error?.message || error) });
   }

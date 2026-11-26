@@ -1,3 +1,4 @@
+import { selectReviewJobs, compareReview } from './dual-review.js';
 import { CHUNK_SECONDS, buildTranscript, chunkRanges, formatTime, TARGET_SAMPLE_RATE, to16kMono, to16kMonoRange, validateAudioBuffer } from './audio.js';
 import { pauseAwareRanges } from './pause-segmentation.js';
 import { sileroPauseRanges } from './silero-segmentation.js';
@@ -41,6 +42,7 @@ function updateActions() {
   el.checkpointSave.disabled = !state.file || !state.segments.length || !state.duration;
   el.checkpointFile.disabled = state.busy || !state.file;
   el.model.disabled = state.busy || state.preflightBusy;
+  $('dual-after').disabled=state.busy;
   el.preflight.disabled = state.busy || state.preflightBusy;
   el.speakerSave.disabled = !state.segments.length || state.busy;
   el.speakerAuto.disabled = !state.file || state.busy || state.diarizationBusy || !state.segments.length || !el.privacy.checked;
@@ -54,6 +56,7 @@ el.audio.addEventListener('change', () => {
   previewURL = file ? URL.createObjectURL(file) : null;
   state.file = file;
   state.segments = [];
+  renderDualReview();
   state.complete = false;
   state.imported = null;
   state.duration = null;
@@ -122,6 +125,7 @@ el.checkpointFile.addEventListener('change', async () => {
     state.modelKey = checkpoint.modelKey;
     state.imported = checkpoint;
     state.segments = checkpoint.segments;
+    renderDualReview();
     state.duration = checkpoint.durationSeconds;
     state.complete = checkpoint.completed;
     el.transcript.value = buildTranscript(state.segments, !state.complete);
@@ -201,6 +205,21 @@ el.benchmarkRun.addEventListener('click', () => {
 });
 
 
+function renderDualReview(){
+  const list=$('dual-list');list.replaceChildren();
+  const results=state.segments.map(s=>s.dualReview).filter(Boolean);
+  for(const r of results){
+    const li=document.createElement('li');
+    const play=document.createElement('button');play.type='button';play.className='secondary';
+    play.textContent='▶ '+formatTime(r.startSeconds)+'–'+formatTime(r.endSeconds);
+    play.onclick=()=>{el.play.currentTime=r.startSeconds;el.play.play().catch(()=>{});};
+    const detail=document.createElement('span');
+    detail.textContent=r.status==='failed'?' Проверка не завершена.': ' '+(r.differs?'Расхождение':'Совпадение текста (не доказательство точности)')+' · '+r.modelKey+' · Основная: '+r.primary+' · Контрольная: '+r.alternate+(r.critical.length?' · Критические отличия: '+r.critical.join(', '):'');
+    li.append(play,detail);list.append(li);
+  }
+  $('dual-status').textContent='Проверено '+results.filter(r=>r.status==='compared').length+' интервалов. Непроверенные интервалы не считаются достоверными.';
+}
+$('dual-export').onclick=()=>downloadText(JSON.stringify(state.segments.map(s=>s.dualReview).filter(Boolean),null,2), 'medpriem-review.json');
 function showAutomaticTurns() {
   el.speakerTurns.replaceChildren();
   for (const turn of state.turns) {
@@ -366,7 +385,7 @@ el.run.addEventListener('click', async () => {
     state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
     el.note.textContent = segmentationNote;
     setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
-    const worker = new Worker('./asr-worker.js?v=07-quality-20261126', { type: 'module' });
+    const worker = new Worker('./asr-worker.js?v=09-gigaam', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
@@ -409,7 +428,7 @@ el.run.addEventListener('click', async () => {
       // Keep disagreement verbatim and mark the segment for human listening.
       const boundary = reconcileBoundary(state.segments.at(-1)?.text, text, window.overlapSeconds > 0);
       text = boundary.text;
-      const segment = { startSeconds: range.startSeconds, endSeconds: range.endSeconds, text,
+      const segment = { startSeconds: range.startSeconds, endSeconds: range.endSeconds, text, rawRecognition: firstResult.text,
         // Overlapped word timestamps refer to different origins; do not attach
         // them to a wrong speaker until real word alignment is available.
         timedChunks: window.overlapSeconds > 0 ? [] : timedChunks,
@@ -420,6 +439,32 @@ el.run.addEventListener('click', async () => {
       setProgress(i + 1, ranges.length);
       if ((i + 1) % 12 === 0) el.note.textContent = segmentationNote + ' Для защиты прогресса сохраните контрольную точку прямо сейчас.';
       updateActions();
+    }
+    // Release the primary model before loading the independent model.
+    worker.terminate(); state.worker = null;
+    if ($('dual-after').checked && !state.legacyFixed) {
+      const jobs=selectReviewJobs(state.segments,ranges,modelKey);
+      if(jobs.length){
+        const verifier=new Worker('./asr-worker.js?v=09-gigaam', {type:'module'});
+        state.worker=verifier;
+        try {
+          for(const [j,job] of jobs.entries()){
+            if(state.abort.signal.aborted) throw new DOMException('Отменено','AbortError');
+            setStatus('Независимая проверка '+(j+1)+' / '+jobs.length);
+            const s=state.segments[job.index];
+            try {
+              const result=await workerRecognize(verifier,{type:'recognize',id:'verify-'+j,modelKey:job.modelKey,samples:to16kMonoRange(decoded,job.startSample,job.endSample)},state.abort.signal);
+              s.dualReview=compareReview(s.rawRecognition??s.text,result.text,job);
+            } catch(e) {
+              if(e?.name==='AbortError') throw e;
+              s.dualReview={status:'failed',modelKey:job.modelKey,startSeconds:job.startSample/16000,endSeconds:job.endSample/16000,reasons:job.reasons};
+              // A model-load failure can recur for every job; stop rather than loop.
+              break;
+            }
+          }
+        } finally {verifier.terminate();state.worker=null;}
+      }
+      renderDualReview();
     }
     state.complete = true;
     state.imported = null;
