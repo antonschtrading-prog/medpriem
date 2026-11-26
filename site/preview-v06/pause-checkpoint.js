@@ -1,3 +1,4 @@
+import { sanitizeReview } from './dual-review.js';
 import { sourceIdentity } from './checkpoint.js';
 import { resolveModel } from './model-options.js';
 import { SEGMENTATION_VERSION } from './pause-segmentation.js';
@@ -22,7 +23,7 @@ export function createPauseCheckpoint({ file, durationSeconds, modelKey, ranges,
   const rows = segments.map((s, i) => {
     if (!s || Math.abs(s.startSeconds - checkedRanges[i].startSeconds) > 0.03 ||
         typeof s.text !== 'string' || s.text.length > 10000) throw new Error('Некорректная последовательность расшифровки.');
-    return { startSeconds: s.startSeconds, text: s.text,
+    return { startSeconds: s.startSeconds, endSeconds: checkedRanges[i].endSeconds, text: s.text, rawRecognition: typeof s.rawRecognition==='string'?s.rawRecognition.slice(0,10000):undefined, dualReview: sanitizeReview(s.dualReview),
       timedChunks: Array.isArray(s.timedChunks) ? s.timedChunks : [], boundaryReview: s.boundaryReview === true, clinicalReview: s.clinicalReview === true };
   });
   return { format: 'medpriem-local-checkpoint', version: PAUSE_CHECKPOINT_VERSION,

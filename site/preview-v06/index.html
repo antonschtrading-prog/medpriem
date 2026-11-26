@@ -10,7 +10,7 @@
 </head>
 <body>
   <main class="shell">
-    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Тестовая версия 0.7</span></header>
+    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Тестовая версия 0.8</span></header>
     <section class="hero">
       <p class="eyebrow">ЭКСПЕРИМЕНТАЛЬНЫЙ РЕЖИМ</p>
       <h2>Расшифруйте запись приёма без сервера и подписок</h2>
@@ -30,6 +30,7 @@
         <select id="asr-model"><option value="tiny">Tiny · быстрый тест</option><option value="base">Base · быстрая проверка</option><option value="small">Small · только на мощном устройстве</option><option value="xlsr_ru" selected>Wav2Vec2 XLSR · русский · другая архитектура · экспериментально</option><option value="medium">Whisper Medium · контрольный вариант</option><option value="turbo">Whisper Large V3 Turbo · новая · очень тяжёлая · экспериментально</option><option value="turbo_ru">Whisper Large V3 Turbo Russian · новая · очень тяжёлая · экспериментально</option></select>
       </label>
       <p class="tiny">Для сравнения разных технологий первым выбран Wav2Vec2 XLSR (CTC, не Whisper), затем Whisper Large V3 Turbo. GigaAM v3 пока не подключена: требуется отдельный браузерный ONNX-движок. Whisper Medium уже тестировали, повторять не обязательно. Обе новые модели пока не проверены на реальном Safari. На iPhone начинайте с Base. При зацикливании Whisper программа один раз повторяет обработку фрагмента с другими параметрами. Нерешённые участки отмечаются для прослушивания; эта проверка не гарантирует восстановление правильных слов.</p>
+      <label class="consent"><input type="checkbox" id="dual-after" checked><span>Перепроверить подозрительные интервалы второй моделью (последовательно, без двух моделей одновременно).</span></label>
       <label class="consent"><input type="checkbox" id="speaker-after"><span>Экспериментально: автоматически определить говорящих после расшифровки. Потребует дополнительной памяти и загрузки локальной модели. Для длинных записей и iPhone сначала используйте короткий тест.</span></label>
       <label class="consent"><input type="checkbox" id="privacy-agree"><span>Это тестовая запись без реальных данных пациента. Понимаю, что модель и библиотека загружаются из внешних источников.</span></label>
       <div class="review-box"><button type="button" class="secondary" id="engine-preflight">Проверить готовность движков</button><p id="engine-preflight-result" class="status" role="status" aria-live="polite">Проверка не запускалась. Она проверяет Silero и доступность модели, но не точность распознавания.</p></div>
@@ -58,6 +59,7 @@
         <button type="button" class="secondary" id="review-run">Найти места для проверки</button>
         <ul id="review-list" class="review-list" aria-live="polite"></ul>
       </div>
+      <div class="review-box"><h4>Независимая проверка двумя моделями</h4><p id="dual-status" class="tiny">Проверка ещё не выполнена.</p><ul id="dual-list" class="review-list"></ul><button id="dual-export" type="button" class="secondary">Сохранить варианты проверки JSON</button></div>
       <div class="review-box"><h4>Измерить точность по эталону</h4>
         <p class="tiny">Для тестовой вымышленной записи вставьте вручную проверенный русский текст. WER = доля ошибок в словах, CER = в символах; отдельно проверяем совпадение чисел и десятичных дозировок. Меньше — лучше. Сравнивать разные модели нужно на одном и том же аудио. Оценка ограничена отрывком до 1500 слов для защиты памяти телефона.</p>
         <textarea id="reference" placeholder="Эталонная расшифровка тестового разговора" aria-label="Эталонный текст для оценки точности"></textarea>
@@ -69,6 +71,6 @@
     </section>
     <footer><p>Без аккаунта · Без оплаты · Без загрузки аудио на GitHub. Исходная аудиозапись остаётся в выбранном вами файле.</p></footer>
   </main>
-  <script type="module" src="./app.js?v=07-quality-20261126"></script>
+  <script type="module" src="./app.js?v=08-dual-20261126"></script>
 </body>
 </html>
