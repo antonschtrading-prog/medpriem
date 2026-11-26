@@ -20,3 +20,14 @@ test('No Silero speech gaps means safe bounded segments and no missing audio', (
   assert.equal(ranges.at(-1).endSample, 61 * 16000);
   assert.ok(ranges.some(r => r.forcedCut));
 });
+
+test('Continuous speech prefers a quieter nearby split without losing samples', () => {
+  const pcm = new Float32Array(61 * 16000);
+  pcm.fill(0.35);
+  pcm.fill(0, 27 * 16000, Math.round(27.4 * 16000));
+  const ranges = rangesFromSpeechIntervals([{start:0,end:61000}], pcm.length, 16000, pcm);
+  assert.ok(ranges[0].endSeconds > 26.7 && ranges[0].endSeconds < 27.6);
+  assert.equal(ranges[0].forcedCut, true);
+  assert.equal(ranges.at(-1).endSample, pcm.length);
+  for (let i=1;i<ranges.length;i++) assert.equal(ranges[i].startSample,ranges[i-1].endSample);
+});
