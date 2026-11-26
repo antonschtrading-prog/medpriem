@@ -19,6 +19,8 @@ self.onmessage=async({data})=>{
   const inputs=model.encoder.prepareInputsFromWaveform(samples);
   const encoded=await model.encoder.run(inputs.signal,inputs.length);
   const chunks=alignTranscript(encoded,text,model.tokens,model.decoder.blankTokenId,samples.length/16000);
-  self.postMessage({type:'aligned',id,chunks:chunks??[],accepted:!!chunks});
+  const greedy=await model.decoder.decode(encoded.encodedData,encoded.encodedDims,encoded.encodedLayout,encoded.encodedLength);
+  const greedyText=greedy.tokenIds.map(i=>model.tokens[i]).filter(t=>t&&!/^<.*>$/.test(t)).join('').replace(/▁/g,' ').trim();
+  self.postMessage({type:'aligned',id,chunks:chunks??[],accepted:!!chunks,diagnostic:{greedyText,blank:model.decoder.blankTokenId,frames:encoded.encodedLength,vocab:model.tokens.length}});
  }catch(e){self.postMessage({type:'alignment-error',id:data.id,message:String(e?.message||e)});}
 };

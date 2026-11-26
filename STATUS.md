@@ -65,3 +65,5 @@ Run 45908684759 SUCCESS: all three GigaAM engines returned Russian text and nati
 
 ## Independent CTC alignment
 Added real CTC emission Viterbi alignment worker using plain GigaAM v3 CTC only as internal aligner; no selectable ASR model added. Transcript retained verbatim; unknown vocabulary, low acoustic posterior, impossible paths rejected. Native times retained on rejection; checkpoint records source. Synthetic DP tests added; browser runtime and accuracy not yet verified.
+
+ROVER: progressive word-transition network with null votes, insertion/deletion/substitution proposals, primary retained on ties; no silent edits. Browser CTC rejected reference phrase in run 45910891450; added diagnostic greedy output, no lowering confidence thresholds. Verify real alignment before release.

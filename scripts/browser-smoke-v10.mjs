@@ -38,7 +38,7 @@ try{
   }catch(e){outcomes.push({key:'diarization',ok:false,error:e.message});}
   try{
    const r=await ask('./alignment-worker.js',{type:'align',id:'forced',text:'добрый день'},'aligned');
-   outcomes.push({key:'forced-alignment',ok:r.accepted&&r.chunks.length===2,accepted:r.accepted,chunks:r.chunks});
+   outcomes.push({key:'forced-alignment',ok:r.accepted&&r.chunks.length===2,accepted:r.accepted,chunks:r.chunks,diagnostic:r.diagnostic});
   }catch(e){outcomes.push({key:'forced-alignment',ok:false,error:e.message});}
   return outcomes;
  },audio);

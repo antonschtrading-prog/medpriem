@@ -219,7 +219,7 @@ function renderDualReview(){
     if(r.wordDifferences?.length)detail.textContent+=' · Отличия: '+r.wordDifferences.map(x=>(x.primary??'∅')+' → '+(x.alternate??'∅')).join('; ');
     if(r.contextText)detail.textContent+=' · Расширенный контекст (не прямое сравнение): '+r.contextText;
     if(r.thirdText)detail.textContent+=' · Третья модель: '+r.thirdText;
-    if(r.suggestions?.length)detail.textContent+=' · Совпадение двух альтернатив: '+r.suggestions.map(x=>x.primary+' → '+x.suggestion).join('; ')+' (проверить по аудио)';
+    if(r.suggestions?.length)detail.textContent+=' · Совпадение двух альтернатив: '+r.suggestions.map(x=>(x.primary??'∅')+' → '+(x.suggestion??'∅')).join('; ')+' (проверить по аудио)';
     li.append(play,detail);list.append(li);
   }
   $('dual-status').textContent='Проверено '+results.filter(r=>r.status==='compared').length+' интервалов. Непроверенные интервалы не считаются достоверными.';

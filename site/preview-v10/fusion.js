@@ -11,10 +11,30 @@ export function alignWords(a,b){
  return rows.reverse();
 }
 export function wordDifferences(primary,alternate){return alignWords(russianTokens(primary),russianTokens(alternate)).filter(([a,b])=>a!==b).map(([a,b])=>({primary:a,alternate:b}));}
+// ROVER-style progressive multiple alignment: align each hypothesis to the
+// existing word-transition network. Every column has one vote per hypothesis,
+// including null (deletion). Ties preserve primary. Never edits the transcript.
+export function wordNetwork(hypotheses){
+ if(!Array.isArray(hypotheses)||hypotheses.length<2||hypotheses.length>5)throw Error('Нужно от двух до пяти гипотез');
+ const sequences=hypotheses.map(russianTokens);
+ let columns=sequences[0].map(word=>[word]);
+ for(let k=1;k<sequences.length;k++){
+  const representatives=columns.map(c=>c.find(x=>x!==null));
+  const rows=alignWords(representatives,sequences[k]);let i=0;
+  columns=rows.map(([a,b])=>a===null?[...Array(k).fill(null),b]:[...columns[i++],b]);
+ }
+ return columns.map((values,index)=>{
+  const counts=new Map();for(const v of values)counts.set(v,(counts.get(v)||0)+1);
+  const sorted=[...counts].sort((a,b)=>b[1]-a[1]||Number(b[0]===values[0])-Number(a[0]===values[0]));
+  const [winner,votes]=sorted[0];
+  return {index,values,winner,votes,majority:votes>hypotheses.length/2,alternatives:sorted.map(([word,count])=>({word,count}))};
+ });
+}
 export function consensus(primary,second,third){
- const a=russianTokens(primary),b=russianTokens(second),c=russianTokens(third);
- // Anchor two alignments to primary; insertions remain visible as alternatives, never silently applied.
- const map=rows=>rows.filter(([x])=>x!==null).map(([,y])=>y);
- const bMap=map(alignWords(a,b)),cMap=map(alignWords(a,c));
- return a.flatMap((word,i)=>{const x=bMap[i],y=cMap[i];return x&&x===y&&x!==word?[{index:i,primary:word,suggestion:x,votes:2}]:[];});
+ const network=wordNetwork([primary,second,third]);let index=0;
+ return network.flatMap(c=>{
+  const original=c.values[0],at=index;if(original!==null)index++;
+  if(!c.majority||c.winner===original)return [];
+  return [{index:at,primary:original,suggestion:c.winner,votes:c.votes}];
+ });
 }

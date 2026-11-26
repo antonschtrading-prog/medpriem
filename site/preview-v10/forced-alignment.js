@@ -7,8 +7,8 @@ export function tokenizeForAlignment(text,tokens,blank){
  const max=Math.min(64,Math.max(1,...[...vocab.keys()].map(x=>x.length)));
  const groups=[];const ids=[];
  for(const m of matches){
-  const word=m[0].toLowerCase().replace(/ё/g,'е');
-  const variants=['▁'+word,word];let found=null;
+  const word=m[0].toLowerCase();
+  const variants=['▁'+word,word,'▁'+word.replace(/ё/g,'е'),word.replace(/ё/g,'е')];let found=null;
   for(const w of variants){
    const dp=Array(w.length+1).fill(null);dp[0]=[];
    for(let i=0;i<w.length;i++)if(dp[i])for(let n=1;n<=Math.min(max,w.length-i);n++){
