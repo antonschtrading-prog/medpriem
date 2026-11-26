@@ -43,6 +43,8 @@ export function reviewCues(segments) {
   for (let i=0; i<segments.length;i++) {
     const s=segments[i], text=String(s.text??'');
     const add=(category, excerpt)=>{ if (output.length<MAX_FINDINGS) output.push({segmentIndex:i,startSeconds:s.startSeconds,category,excerpt}); };
+    if (s.boundaryReview) add('стык фрагментов', 'После вынужденного разреза текст не совпал: проверьте оригинал ±1 секунду.');
+    if (s.clinicalReview) add('разногласие клинических фактов', 'Повторное распознавание дало другие числа, отрицания или названия. Проверьте аудио.');
     if (/\[ТРЕБУЕТ ПРОСЛУШИВАНИЯ:/i.test(text)) { add('подозрительное зацикливание', 'Модель повторялась. Прослушайте оригинал и исправьте вручную.'); continue; }
     if (!text.trim() || /\[речь не распознана\]/i.test(text)) { add('нет текста','Проверьте, была ли речь на этом участке'); continue; }
     for (const [category,re] of [['число',NUM_RX],['единица измерения',DOSE_RX],['медицинский термин',TERM_RX],['неуверенное выражение',UNCERTAIN_RX]]) {
