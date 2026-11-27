@@ -46,3 +46,5 @@ Independent CTC alignment: verify actual ONNX runtime, time accuracy and rejecti
 Validate benchmark contracts, browser integration, cancellation, exports; run real public dialogue and synthetic clinical reference; profile per-stage runtime; then select adaptive configuration and optimize only measured bottlenecks.
 
 1.1.1: verify recovery on reload and interrupted model; then resume the public dialogue benchmark, without re-running finished models.
+
+Parallel lab: run five models on the same public 37-second excerpt in independent runner jobs; compare hashes and segmentation, collect timings and disagreements. Use results and existing user exports to reduce the candidate set; avoid full-recording repeats unless they answer a specific remaining question. Local runtime remains serial until measured memory/performance support concurrency.
