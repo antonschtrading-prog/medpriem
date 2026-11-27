@@ -33,3 +33,5 @@ Independent alignment: sequential browser CTC acoustic emissions + Viterbi trell
 
 ## 1.1 benchmark
 Separate local-only preview with automatic sequential five-model comparison, common decoded PCM and VAD ranges, worker loading/inference timing, cached same-window review + ROVER suggestions, alignment and diarization, JSON/TXT export. No medical deployment. Normal workflow preserved.
+
+1.1.1 benchmark local recovery: store de-identified transcript checkpoints, SHA-256 source identifier, timing and segmentation; never store the audio itself. Reselect original file for recovery; completed model runs are reused.
