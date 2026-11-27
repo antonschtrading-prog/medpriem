@@ -40,14 +40,15 @@ function render(){
 }
 $('stop').onclick=()=>abort?.abort();
 $('save').onclick=()=>{if(report)downloadText(JSON.stringify(report,null,2),cleanFilename(report.file)+'_benchmark.json');};
-$('score').onclick=()=>{const output={};for(const r of report.results.filter(x=>x.status==='complete')){try{output[r.key]=scoreReference($('reference').value,r.rows,Number($('end').value));}catch(e){output[r.key]={error:e.message};}}report.scores=output;$('scores').textContent=JSON.stringify(output,null,2);};
-$('start').onclick=async()=>{
+$('score').onclick=async()=>{const output={};for(const r of report.results.filter(x=>x.status==='complete')){try{output[r.key]=scoreReference($('reference').value,r.rows,Number($('end').value));}catch(e){output[r.key]={error:e.message};}}report.scores=output;$('scores').textContent=JSON.stringify(output,null,2);try{await checkpoint();}catch(e){$('storage').textContent='Ошибка сохранения: '+e.message;}};
+async function startRun(){
  if(abort||!$('consent').checked||!$('audio').files.length)return;
- const file=$('audio').files[0],primary=$('primary').value,started=performance.now();abort=new AbortController();const signal=abort.signal;
+ const file=$('audio').files[0],primary=$('primary').value,started=performance.now();let matched=false;abort=new AbortController();const signal=abort.signal;
  actions();
  try{
-  status('Проверка выбранного файла');const bytes=await file.arrayBuffer(),hash=await fingerprint(bytes);
+  report=await loadCheckpoint()??null;status('Проверка выбранного файла');const bytes=await file.arrayBuffer(),hash=await fingerprint(bytes);
   if(report&&!matchesFile(report,hash)){status('Выбран другой файл. Для новой записи удалите сохранённое испытание явно.');return;}
+  matched=true;if(report?.status==='complete'){status('Испытание уже завершено. Скачайте отчёт.');return;}
   if(!report){report={schema:1,version:'1.1.1',file:file.name,fileHash:hash,results:[],status:'running',primary,stages:{}};await checkpoint();}
   report.status='running';report.primary=primary;delete report.error;render();
   status('Декодирование записи');let t=performance.now(),decoded;
@@ -63,23 +64,24 @@ $('start').onclick=async()=>{
   report.ranges=ranges;fillRanges();await checkpoint();
   report.results=await runComparison({ranges,pcm,signal,createEngine:key=>newEngine(key,signal),notify:(key,i,n)=>{status(resolveModel(key).label+' · '+(i+1)+' / '+n);$('progress').max=KEYS.length*n;$('progress').value=KEYS.indexOf(key)*n+i;},previous:report.results,publish:async r=>{report.results=r;await checkpoint();render();}});
   if(signal.aborted)throw new DOMException('Остановлено','AbortError');
-  t=performance.now();const c=report.complex=reuseReview(report.results,primary,ranges);report.stages.reuseReviewMs=performance.now()-t;await checkpoint();
-  t=performance.now();c.aligned=0;c.alignmentRejected=0;c.alignmentFailed=0;
+  t=performance.now();const oldComplex=report.complex;const c=report.complex=reuseReview(report.results,primary,ranges);if(oldComplex?.primaryKey===primary){for(let i=0;i<c.rows.length;i++){const old=oldComplex.rows[i];if(old?.text===c.rows[i].text&&['ctc','rejected'].includes(old.alignment)){c.rows[i].alignment=old.alignment;c.rows[i].timedChunks=old.timedChunks;}}}report.stages.reuseReviewMs=performance.now()-t;await checkpoint();
+  t=performance.now();c.aligned=c.rows.filter(r=>r.alignment==='ctc').length;c.alignmentRejected=c.rows.filter(r=>r.alignment==='rejected').length;c.alignmentFailed=0;
   let worker=new Worker('./alignment-worker.js?v=11',{type:'module'});active=worker;
-  try{for(let i=0;i<c.rows.length;i++){const row=c.rows[i],r=ranges[i];if(!row.text.trim())continue;status('CTC '+(i+1)+' / '+c.rows.length);
+  try{for(let i=0;i<c.rows.length;i++){const row=c.rows[i],r=ranges[i];if(!row.text.trim()||['ctc','rejected'].includes(row.alignment))continue;status('CTC '+(i+1)+' / '+c.rows.length);
    try{const a=await request(worker,{type:'align',id:i,text:row.text,samples:pcm.slice(r.startSample,r.endSample)},signal,'aligned','alignment-error',180000);
     const chunks=normalizeWindowChunks(a.chunks,row.text,r,r);
     if(a.accepted&&chunks.length){row.timedChunks=chunks;row.alignment='ctc';c.aligned++;}else{row.alignment='rejected';c.alignmentRejected++;}
    }catch(e){if(signal.aborted)throw e;row.alignment='failed';c.alignmentFailed++;c.alignmentError=e.message;break;}
    await checkpoint();
   }}finally{worker.terminate();active=null;}
-  report.stages.alignmentMs=performance.now()-t;t=performance.now();status('Определение говорящих');
+  report.stages.alignmentMs=(report.stages.alignmentMs??0)+performance.now()-t;t=performance.now();status('Определение говорящих');
   worker=new Worker('./diarization-worker.js',{type:'module'});active=worker;
   try{const d=await request(worker,{type:'diarize',id:1,samples:pcm.slice()},signal,'diarization-result','diarization-error',1200000);c.turns=normalizeSpeakerTurns(d.segments,report.duration);c.diarized=diarizedTranscript(c.rows,c.turns,report.duration,formatTime);}catch(e){if(signal.aborted)throw e;c.diarizationError=e.message;}finally{worker.terminate();active=null;}
   report.stages.diarizationMs=performance.now()-t;await checkpoint();
   report.status=report.results.every(r=>r.status==='complete')&&!c.alignmentFailed&&!c.diarizationError&&c.turns?.length?'complete':'partial';status('Испытание завершено: '+report.status);$('progress').value=$('progress').max;
- }catch(e){if(report){report.status=signal.aborted?'cancelled':'partial';report.error=e.message;}status('Испытание '+(signal.aborted?'остановлено':e.message)+'. Сохраните доступный отчёт.');}
- finally{active?.terminate();active=null;if(report){report.wallMs=(report.wallMs??0)+performance.now()-started;try{await checkpoint();}catch(e){$('storage').textContent='Не удалось сохранить: '+e.message+'. Скачайте JSON до закрытия страницы.';}}abort=null;render();}
-};
-$('discard').onclick=async()=>{if(abort||!confirm('Удалить сохранённый результат? Сначала скачайте JSON, если он нужен.'))return;try{await clearCheckpoint();report=null;$('storage').textContent='Локальное испытание удалено';$('scores').textContent='';fillRanges();render();}catch(e){status(e.message);}};
-(async()=>{try{report=await loadCheckpoint()??null;if(report){$('primary').value=report.primary;fillRanges();$('storage').textContent='Восстановлено: '+report.results.filter(r=>r.status==='complete').length+' из 5 моделей. Выберите тот же аудиофайл для продолжения.';status(report.status==='complete'?'Испытание завершено. Отчёт доступен.':'Продолжение доступно после выбора того же файла.');}ready=true;}catch(e){$('storage').textContent='Локальное хранилище недоступно: '+e.message;status('Запуск заблокирован, чтобы не потерять результаты.');}render();})();
+ }catch(e){if(matched&&report){report.status=signal.aborted?'cancelled':'partial';report.error=e.message;}status('Испытание '+(signal.aborted?'остановлено':e.message)+'. Сохраните доступный отчёт.');}
+ finally{active?.terminate();active=null;if(matched&&report){report.wallMs=(report.wallMs??0)+performance.now()-started;try{await checkpoint();}catch(e){$('storage').textContent='Не удалось сохранить: '+e.message+'. Скачайте JSON до закрытия страницы.';}}abort=null;render();}
+}
+$('start').onclick=async()=>{if(abort)return;try{if(navigator.locks){await navigator.locks.request('medpriem-benchmark-v11',{ifAvailable:true},async lock=>{if(!lock){status('Испытание уже выполняется в другой вкладке.');return;}await startRun();});}else await startRun();}catch(e){status(e.message);}};
+$('discard').onclick=async()=>{if(abort||!confirm('Удалить сохранённый результат? Сначала скачайте JSON, если он нужен.'))return;try{if(navigator.locks){const cleared=await navigator.locks.request('medpriem-benchmark-v11',{ifAvailable:true},async lock=>{if(!lock)return false;await clearCheckpoint();return true;});if(!cleared){status('Нельзя удалить: другая вкладка выполняет испытание.');return;}}else await clearCheckpoint();report=null;$('storage').textContent='Локальное испытание удалено';$('scores').textContent='';fillRanges();render();}catch(e){status(e.message);}};
+(async()=>{try{report=await loadCheckpoint()??null;if(report){$('primary').value=report.primary;fillRanges();$('storage').textContent='Восстановлено: '+report.results.filter(r=>r.status==='complete').length+' из 5 моделей. Выберите тот же аудиофайл для продолжения.';status(report.status==='complete'?'Испытание завершено. Отчёт доступен.':'Продолжение доступно после выбора того же файла.');}ready=true;try{await navigator.storage?.persist?.();}catch{}}catch(e){$('storage').textContent='Локальное хранилище недоступно: '+e.message;status('Запуск заблокирован, чтобы не потерять результаты.');}render();})();
