@@ -75,3 +75,6 @@ CI 45912428826 SUCCESS; Chromium 45912428878 SUCCESS. Real CTC positive control:
 
 ## 1.1 benchmark implementation
 Sequential comparison, common PCM, per-model load/inference/wall time, partial export, reuse same-window results for independent review and ROVER, CTC and diarization. Reference scoring requires matching segment boundary; no reference means no accuracy score. CI and actual browser validation pending. No measured speedup yet.
+
+## 1.1.1 recovery fix
+1.1 deployed successfully (46006347530; browser 46004198898 all five runtime passes, synthetic speech accuracy not verified). User reported lost progress after tab closed. Added local IndexedDB checkpoints after every recognized fragment and model, restore on page load, SHA-256 same-file gate, resume incomplete model, explicit deletion and JSON fallback. No audio stored. Old 1.1 in-memory state cannot be recovered after reload. Tests pending.

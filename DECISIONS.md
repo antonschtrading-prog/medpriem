@@ -18,3 +18,5 @@
 12. Publish only current and previous preview; keep old source in Git history/test fixtures, not on Pages. Consensus suggestions never overwrite clinical facts.
 
 13. Approved 1.1: benchmark separate from normal workflow; run all five sequentially, compare same audio; keep 1.0 rollback. No automatic clinical corrections; E2E RNNT default benchmark candidate only, not final production selection.
+
+14. 1.1.1: preserve benchmark progress locally after each fragment, require exact source hash on resume, explicit user deletion. No automatic upload or retention of audio.

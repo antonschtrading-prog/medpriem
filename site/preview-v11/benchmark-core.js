@@ -8,17 +8,20 @@ import {buildTranscript} from './audio.js';
 import {benchmarkRussian} from './quality.js';
 export const KEYS=['gigaam','gigaam_e2e_rnnt','gigaam_e2e_ctc','medium','turbo_ru'];
 const check=signal=>{if(signal?.aborted)throw new DOMException('Остановлено','AbortError');};
-export async function runComparison({ranges,pcm,createEngine,signal,notify=()=>{},publish=()=>{},keys=KEYS,clock=()=>performance.now()}){
- const results=[];
+export async function runComparison({ranges,pcm,createEngine,signal,notify=()=>{},publish=()=>{},keys=KEYS,clock=()=>performance.now(),previous=[]}){
+ const results=structuredClone(previous);
+ const replace=async result=>{const i=results.findIndex(r=>r.key===result.key);if(i<0)results.push(result);else results[i]=result;await publish(structuredClone(results));};
  for(const key of keys){
-  check(signal);const started=clock(),rows=[];let engine,loadMs=0,inferMs=0,calls=0,error=null;
+  check(signal);const prior=results.find(r=>r.key===key);if(prior?.status==='complete'&&prior.rows.length===ranges.length)continue;
+  const started=clock(),rows=structuredClone(prior?.rows??[]);let engine,loadMs=prior?.loadMs??0,inferMs=prior?.inferMs??0,calls=prior?.calls??0,error=null;
+  const snapshot=(status,error=null)=>({key,status,error,rows,loadMs,inferMs,wallMs:(prior?.wallMs??0)+clock()-started,calls,transcript:buildTranscript(rows,status!=='complete')});
   try{
    engine=createEngine(key);
    const recognize=async(w,retry=false)=>{
     check(signal);const r=await engine.recognize(pcm.slice(w.startSample,w.endSample),retry);
     loadMs+=r.loadMs??0;inferMs+=r.inferMs??0;calls++;return r;
    };
-   for(let i=0;i<ranges.length;i++){
+   for(let i=rows.length;i<ranges.length;i++){
     check(signal);notify(key,i,ranges.length);
     const range=ranges[i],w=recognitionWindow(ranges,i),first=await recognize(w);
     let text=first.text,chunks=first.chunks,clinicalReview=false;
@@ -31,11 +34,11 @@ export async function runComparison({ranges,pcm,createEngine,signal,notify=()=>{
     const suspicious=repetitionAudit(text,seconds).suspicious;
     const boundary=reconcileBoundary(rows.at(-1)?.text,text,w.overlapSeconds>0);
     rows.push({startSeconds:range.startSeconds,endSeconds:range.endSeconds,text:boundary.text,rawRecognition:first.text,timedChunks:normalizeWindowChunks(chunks,boundary.text,w,range),boundaryReview:boundary.requiresReview,clinicalReview,suspicious,window:w});
+    try{await replace(snapshot('running'));}catch(e){const failure=Error('Не удалось сохранить контрольную точку: '+e.message);failure.name='CheckpointError';throw failure;}
    }
-  }catch(e){error=String(e.message||e);if(e.name==='AbortError')error='Остановлено';}
+  }catch(e){if(e.name==='CheckpointError')throw e;error=String(e.message||e);if(e.name==='AbortError')error='Остановлено';}
   finally{engine?.close();}
-  const result={key,status:error?(signal?.aborted?'cancelled':'failed'):'complete',error,rows,loadMs,inferMs,wallMs:clock()-started,calls,transcript:buildTranscript(rows,!!error)};
-  results.push(result);publish([...results]);if(signal?.aborted)break;
+  await replace(snapshot(error?(signal?.aborted?'cancelled':'failed'):'complete',error));if(signal?.aborted)break;
  }
  return results;
 }
