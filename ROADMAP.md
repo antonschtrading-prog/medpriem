@@ -41,3 +41,6 @@
 1.0: finish CI, browser runtime validation, real E2E and diarization benchmark. DP suggestions are conservative ROVER-style adaptation; full insertion voting and acoustic forced alignment remain research items.
 
 Independent CTC alignment: verify actual ONNX runtime, time accuracy and rejection rates on reference speech. No clinical use until validated.
+
+## 1.1
+Validate benchmark contracts, browser integration, cancellation, exports; run real public dialogue and synthetic clinical reference; profile per-stage runtime; then select adaptive configuration and optimize only measured bottlenecks.
