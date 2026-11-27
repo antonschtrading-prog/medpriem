@@ -3,7 +3,7 @@ import { loadGigaam } from './gigaam.js';
 // scripts/weights are self-hosted, audited, and network egress is restricted.
 import { resolveModel } from './model-options.js';
 const ENGINE_VERSION = '3.8.1';
-const BUILD_ID = '10-audit-20261127';
+const BUILD_ID = '11-benchmark-20261127';
 let transcriber = null;
 let loadedModelKey = null;
 let busy = false;
@@ -64,7 +64,10 @@ self.onmessage = async ({ data }) => {
     }
     const model = resolveModel(data.modelKey ?? 'gigaam');
     self.postMessage({ type: 'engine-state', state: 'loading' });
+    const loadStart=performance.now();
     const pipe = await init(data.modelKey ?? 'gigaam');
+    const loadMs=performance.now()-loadStart;
+    const inferenceStart=performance.now();
     self.postMessage({ type: 'engine-state', state: 'running' });
     // CTC models do not support Whisper's language/task/decoding generation options.
     const options = model.family === 'whisper'
@@ -80,7 +83,7 @@ self.onmessage = async ({ data }) => {
       if (model.family !== 'whisper' || !/timestamp|attention|alignment/i.test(String(error?.message || error))) throw error;
       result = await pipe(samples, { ...options, return_timestamps: false });
     }
-    self.postMessage({ type: 'recognized', id: data.id, text: result?.text || '', chunks: Array.isArray(result?.chunks) ? result.chunks.map(c => ({ text: c.text, timestamp: c.timestamp })) : [] });
+    self.postMessage({ type: 'recognized', id: data.id, loadMs, inferMs:performance.now()-inferenceStart, text: result?.text || '', chunks: Array.isArray(result?.chunks) ? result.chunks.map(c => ({ text: c.text, timestamp: c.timestamp })) : [] });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     const hint = /Module\.MountedFiles|encoder_model\.onnx_data/i.test(reason)

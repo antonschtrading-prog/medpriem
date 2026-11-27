@@ -390,7 +390,7 @@ el.run.addEventListener('click', async () => {
     state.vadEngine = state.legacyFixed ? 'legacy' : segmentationNote.startsWith('Silero VAD:') ? 'silero' : 'energy';
     el.note.textContent = segmentationNote;
     setStatus(segmentationNote + ' Начинаю распознавание фрагментов переменной длины.');
-    const worker = new Worker('./asr-worker.js?v=11-align', { type: 'module' });
+    const worker = new Worker('./asr-worker.js?v=11-benchmark', { type: 'module' });
     state.worker = worker;
     for (let i = resume?.nextIndex ?? 0; i < ranges.length; i++) {
       if (!state.busy || state.worker !== worker) return;
@@ -448,7 +448,7 @@ el.run.addEventListener('click', async () => {
     if ($('dual-after').checked && !state.legacyFixed) {
       const jobs=selectReviewJobs(state.segments,ranges,modelKey);
       if(jobs.length){
-        const verifier=new Worker('./asr-worker.js?v=11-align', {type:'module'});
+        const verifier=new Worker('./asr-worker.js?v=11-benchmark', {type:'module'});
         state.worker=verifier;
         try {
           for(const [j,job] of jobs.entries()){
@@ -478,7 +478,7 @@ el.run.addEventListener('click', async () => {
         const thirdKey=modelKey==='medium'?'turbo_ru':'medium';
         const thirdJobs=jobs.filter(j=>state.segments[j.index].dualReview?.status==='compared'&&state.segments[j.index].dualReview.differs&&j.modelKey!==thirdKey);
         if(thirdJobs.length){
-          const third=new Worker('./asr-worker.js?v=11-align',{type:'module'});state.worker=third;
+          const third=new Worker('./asr-worker.js?v=11-benchmark',{type:'module'});state.worker=third;
           try{
             for(const [k,j] of thirdJobs.entries()){
               setStatus('Третья модель: '+(k+1)+' / '+thirdJobs.length);

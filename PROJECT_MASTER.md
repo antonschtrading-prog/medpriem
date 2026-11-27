@@ -30,3 +30,6 @@
 Separate site/preview-v10 preserves 0.9. Five selectable models: GigaAM RNNT/E2E RNNT/E2E CTC, Medium, Turbo Russian. Diarization-JS candidate. No clinical deployment.
 
 Independent alignment: sequential browser CTC acoustic emissions + Viterbi trellis after recognition; no text substitution, reject unsupported alignment, preserve native fallback. Internal CTC aligner is not a selectable recognition model.
+
+## 1.1 benchmark
+Separate local-only preview with automatic sequential five-model comparison, common decoded PCM and VAD ranges, worker loading/inference timing, cached same-window review + ROVER suggestions, alignment and diarization, JSON/TXT export. No medical deployment. Normal workflow preserved.

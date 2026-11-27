@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check site/app.js && node --check site/asr-worker.js && node --check site/hallucination.js && node --check site/model-options.js && node --check site/quality.js && node --check site/diarization.js && node --check site/diarization-worker.js && node --check site/preview-v06/app.js && node --check site/preview-v06/dual-review.js && node --check site/preview-v06/pause-checkpoint.js && node --check site/preview-v06/gigaam.js && node --check site/preview-v06/asr-worker.js && node --check site/preview-v06/preflight.js && for f in site/preview-v10/*.js; do node --check \"$f\" || exit 1; done"
+    "check": "node --check site/app.js && node --check site/asr-worker.js && node --check site/hallucination.js && node --check site/model-options.js && node --check site/quality.js && node --check site/diarization.js && node --check site/diarization-worker.js && node --check site/preview-v06/app.js && node --check site/preview-v06/dual-review.js && node --check site/preview-v06/pause-checkpoint.js && node --check site/preview-v06/gigaam.js && node --check site/preview-v06/asr-worker.js && node --check site/preview-v06/preflight.js && for f in site/preview-v10/*.js site/preview-v11/*.js; do node --check \"$f\" || exit 1; done"
   }
 }

@@ -16,3 +16,5 @@
 11. Approved 1.0: retain five candidates only; reuse upstream open-source code where possible, keep 0.9 rollback, no publication until integration checks. No invented timing or automatic replacement of critical facts.
 
 12. Publish only current and previous preview; keep old source in Git history/test fixtures, not on Pages. Consensus suggestions never overwrite clinical facts.
+
+13. Approved 1.1: benchmark separate from normal workflow; run all five sequentially, compare same audio; keep 1.0 rollback. No automatic clinical corrections; E2E RNNT default benchmark candidate only, not final production selection.

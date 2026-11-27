@@ -72,3 +72,6 @@ Alignment diagnostic run 45911251628: real CTC returned readable greedy transcri
 
 ## Alignment and ROVER integration gate passed
 CI 45912428826 SUCCESS; Chromium 45912428878 SUCCESS. Real CTC positive control: «добрый» 0.040–0.360 s, «день» 0.400–0.720 s. Negative unrelated phrase rejected. ROVER insertion/deletion/substitution/tie regression tests passed. This confirms runtime and limited synthetic controls, not long-recording accuracy or clinical readiness. Release for comparative testing.
+
+## 1.1 benchmark implementation
+Sequential comparison, common PCM, per-model load/inference/wall time, partial export, reuse same-window results for independent review and ROVER, CTC and diarization. Reference scoring requires matching segment boundary; no reference means no accuracy score. CI and actual browser validation pending. No measured speedup yet.
