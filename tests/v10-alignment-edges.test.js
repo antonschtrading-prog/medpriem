@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {forceAlign,tokenizeForAlignment} from '../site/preview-v10/forced-alignment.js';
+test('unrelated speech before and after transcript',()=>{const seq=[2,2,0,1,0,2,2];const e={encodedData:Float32Array.from(seq.flatMap(v=>[0,1,2].map(i=>i===v?8:-8))),encodedDims:[1,seq.length,3],encodedLayout:'BTV',encodedLength:seq.length};assert.deepEqual(forceAlign(e,[1],0,7).map(x=>[x.start,x.end]),[[3,4]]);});
+test('character CTC uses explicit internal word separator but not leading separator',()=>{const r=tokenizeForAlignment('да да',['<blank>','д','а','▁'],0);assert.deepEqual(r.ids,[1,2,3,1,2]);});

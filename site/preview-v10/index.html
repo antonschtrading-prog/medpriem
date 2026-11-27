@@ -10,7 +10,7 @@
 </head>
 <body>
   <main class="shell">
-    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Тестовая версия 1.0</span></header>
+    <header class="header"><div class="mark" aria-hidden="true">◈</div><div><h1>МедПриём</h1><p>Аудиозапись → текст. На вашем устройстве.</p></div><span class="stage">Тестовая версия 1.0 · выравнивание</span></header>
     <section class="hero">
       <p class="eyebrow">ЭКСПЕРИМЕНТАЛЬНЫЙ РЕЖИМ</p>
       <h2>Расшифруйте запись приёма без сервера и подписок</h2>
@@ -32,6 +32,7 @@
       <p class="tiny">E2E-модели включают пунктуацию и нормализацию. Контрольная модель загружается последовательно. Только обезличенные записи.</p>
       <label class="consent"><input type="checkbox" id="dual-after" checked><span>Перепроверить подозрительные интервалы второй моделью (последовательно, без двух моделей одновременно).</span></label>
       <label class="consent"><input type="checkbox" id="third-after"><span>Третья модель при расхождении (показывает совпавшие альтернативы, не меняет текст).</span></label>
+      <label class="consent"><input type="checkbox" id="align-after" checked><span>Независимо привязать слова к звуку (CTC, без изменения текста).</span></label><p class="tiny" id="alignment-status" role="status"></p>
       <label class="consent"><input type="checkbox" id="speaker-after"><span>Экспериментально: автоматически определить говорящих после расшифровки. Потребует дополнительной памяти и загрузки локальной модели. Для длинных записей и iPhone сначала используйте короткий тест.</span></label>
       <label class="consent"><input type="checkbox" id="privacy-agree"><span>Это тестовая запись без реальных данных пациента. Понимаю, что модель и библиотека загружаются из внешних источников.</span></label>
       <div class="review-box"><button type="button" class="secondary" id="engine-preflight">Проверить готовность движков</button><p id="engine-preflight-result" class="status" role="status" aria-live="polite">Проверка не запускалась. Она проверяет Silero и доступность модели, но не точность распознавания.</p></div>
@@ -72,6 +73,6 @@
     </section>
     <footer><p>Без аккаунта · Без оплаты · Без загрузки аудио на GitHub. Исходная аудиозапись остаётся в выбранном вами файле.</p></footer>
   </main>
-  <script type="module" src="./app.js?v=10-audit"></script>
+  <script type="module" src="./app.js?v=11-align"></script>
 </body>
 </html>

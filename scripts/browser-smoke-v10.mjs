@@ -15,7 +15,7 @@ try{
    try{return await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(Error('worker timeout: '+message.modelKey)),240000);
     worker.onerror=e=>{clearTimeout(timer);reject(Error(e.message||'worker startup'));};
-    worker.onmessage=({data})=>{if(data.type===expect){clearTimeout(timer);resolve(data);}else if(data.type==='error'||data.type==='diarization-error'){clearTimeout(timer);reject(Error(data.message));}};
+    worker.onmessage=({data})=>{if(data.type===expect){clearTimeout(timer);resolve(data);}else if(data.type==='error'||data.type==='diarization-error'||data.type==='alignment-error'){clearTimeout(timer);reject(Error(data.message));}};
     worker.postMessage({...message,samples:pcm.slice()});
    });}finally{worker.terminate();}
   }
@@ -36,6 +36,11 @@ try{
    if(!turns.length)throw Error('No valid normalized turns');
    outcomes.push({key:'diarization',ok:true,turns});
   }catch(e){outcomes.push({key:'diarization',ok:false,error:e.message});}
+  try{
+   const r=await ask('./alignment-worker.js',{type:'align',id:'forced',text:'добрый день'},'aligned');
+   const bad=await ask('./alignment-worker.js',{type:'align',id:'negative',text:'фиолетовый трактор космонавт'},'aligned');
+   outcomes.push({key:'forced-alignment',ok:r.accepted&&r.chunks.length===2&&r.chunks[0].timestamp[0]<2&&r.chunks[1].timestamp[1]<4.67&&!bad.accepted,accepted:r.accepted,chunks:r.chunks,diagnostic:r.diagnostic,negativeRejected:!bad.accepted});
+  }catch(e){outcomes.push({key:'forced-alignment',ok:false,error:e.message});}
   return outcomes;
  },audio);
  console.log(JSON.stringify(results,null,2));

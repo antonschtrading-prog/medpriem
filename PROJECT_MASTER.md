@@ -28,3 +28,5 @@
 
 ## 1.0 experimental
 Separate site/preview-v10 preserves 0.9. Five selectable models: GigaAM RNNT/E2E RNNT/E2E CTC, Medium, Turbo Russian. Diarization-JS candidate. No clinical deployment.
+
+Independent alignment: sequential browser CTC acoustic emissions + Viterbi trellis after recognition; no text substitution, reject unsupported alignment, preserve native fallback. Internal CTC aligner is not a selectable recognition model.
