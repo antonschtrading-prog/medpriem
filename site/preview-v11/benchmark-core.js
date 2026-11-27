@@ -54,8 +54,8 @@ export function reuseReview(results,primaryKey,ranges){
   alternatives.sort((a,b)=>Number(resolveModel(b.key).family!==resolveModel(primaryKey).family)-Number(resolveModel(a.key).family!==resolveModel(primaryKey).family));
   if(!alternatives.length){missing++;continue;}
   const a=alternatives[0],job={index:i,modelKey:a.key,startSample:w.startSample,endSample:w.endSample,reasons:jobs.find(j=>j.index===i)?.reasons??['повтор']};
-  row.dualReview=compareReview(row.rawRecognition,a.rows[i].rawRecognition,job);compared++;
-  if(row.dualReview.differs&&alternatives[1]){row.dualReview=attachThird(row.dualReview,alternatives[1].rows[i].rawRecognition,alternatives[1].key);third++;}
+  try{row.dualReview=compareReview(row.rawRecognition,a.rows[i].rawRecognition,job);compared++;
+  if(row.dualReview.differs&&alternatives[1]){row.dualReview=attachThird(row.dualReview,alternatives[1].rows[i].rawRecognition,alternatives[1].key);third++;}}catch(e){row.reviewError=String(e.message||e);missing++;}
  }
  return {primaryKey,rows,selected:indices.size,compared,third,missing,transcript:buildTranscript(rows),reviewMode:'cached-identical-windows; no automatic substitutions'};
 }
