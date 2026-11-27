@@ -69,3 +69,6 @@ Added real CTC emission Viterbi alignment worker using plain GigaAM v3 CTC only 
 ROVER: progressive word-transition network with null votes, insertion/deletion/substitution proposals, primary retained on ties; no silent edits. Browser CTC rejected reference phrase in run 45910891450; added diagnostic greedy output, no lowering confidence thresholds. Verify real alignment before release.
 
 Alignment diagnostic run 45911251628: real CTC returned readable greedy transcript containing target phrase; forced alignment rejected it. Corrected leading separator handling and free outer acoustic context while retaining posterior gates. Added positive/negative runtime controls and edge tests; verification pending.
+
+## Alignment and ROVER integration gate passed
+CI 45912428826 SUCCESS; Chromium 45912428878 SUCCESS. Real CTC positive control: «добрый» 0.040–0.360 s, «день» 0.400–0.720 s. Negative unrelated phrase rejected. ROVER insertion/deletion/substitution/tie regression tests passed. This confirms runtime and limited synthetic controls, not long-recording accuracy or clinical readiness. Release for comparative testing.
