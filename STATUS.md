@@ -82,3 +82,5 @@ Sequential comparison, common PCM, per-model load/inference/wall time, partial e
 Recovery test: actual first model, reload, reject wrong file, continue second model, assert first result unchanged, reload again. Added Web Locks to prevent competing benchmark tabs where supported; completed CTC spans are reused. Browser checks pending.
 
 Recovery validation: browser 46032441438 PASS real model -> reload -> wrong-file rejection -> second model -> reload; full browser 46032441195 and regression 46032441199 SUCCESS. PR 8 merged 8089674. Added separate parallel public-dialogue benchmark (37 s excerpt, five isolated GitHub jobs; no real patient audio), not a change to local ASR architecture. Results pending. No claim of speedup or clinical accuracy.
+
+1.2 implementation batch: PR9 merged, run 46056547942 success. Implemented separate 1.2 preview; real runtime and performance tests pending. No claim of WebGPU, neural punctuation, clinical accuracy or speed target reached.

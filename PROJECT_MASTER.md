@@ -35,3 +35,6 @@ Independent alignment: sequential browser CTC acoustic emissions + Viterbi trell
 Separate local-only preview with automatic sequential five-model comparison, common decoded PCM and VAD ranges, worker loading/inference timing, cached same-window review + ROVER suggestions, alignment and diarization, JSON/TXT export. No medical deployment. Normal workflow preserved.
 
 1.1.1 benchmark local recovery: store de-identified transcript checkpoints, SHA-256 source identifier, timing and segmentation; never store the audio itself. Reselect original file for recovery; completed model runs are reused.
+
+## 1.2
+Cross-device one-button candidate, GigaAM RNNT primary, bounded E2E RNNT review; native times, no blanket acoustic alignment, conservative speaker labels. WASM baseline, adaptive thread selection only when isolated; GPU not guaranteed. Local checkpoints, no stored audio. Preserve raw words and clinical facts.
