@@ -86,3 +86,5 @@ Recovery validation: browser 46032441438 PASS real model -> reload -> wrong-file
 1.2 implementation batch: PR9 merged, run 46056547942 success. Implemented separate 1.2 preview; real runtime and performance tests pending. No claim of WebGPU, neural punctuation, clinical accuracy or speed target reached.
 
 28.11.2026: PR10 merged 4cd6736; regression 46141952123 and real browser 46141952183 passed, including reload recovery, 37 s public dialogue, 2 fragments, 1 reviewed, 5 speaker intervals. Pages 46143990053 attempts 1/2 failed on missing/duplicate artifact metadata. Fix: unique attempt artifact name and wait for API visibility. Publication pending; no application code changed.
+
+28.11.2026: b7aa097 WebKit repeats 1/3 passed; jobs 141034156179, 141034156307, 141034156226 all last responsive at diarization. Forced review PR15 141036396782 PASS (37 s in 135.112 s, 1 compared, 4 timed rows, two speakers, no observed external writes). Chromium 180s 233.380s PASS; requested 600s fixture actual 588.528s, 411.509s PASS, 6 reviewed, 2 speakers, zero observed external writes. Added split-process experimental workflow; no proven stability yet, no main changes.
