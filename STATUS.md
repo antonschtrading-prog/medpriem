@@ -86,3 +86,5 @@ Recovery validation: browser 46032441438 PASS real model -> reload -> wrong-file
 1.2 implementation batch: PR9 merged, run 46056547942 success. Implemented separate 1.2 preview; real runtime and performance tests pending. No claim of WebGPU, neural punctuation, clinical accuracy or speed target reached.
 
 28.11.2026: PR10 merged 4cd6736; regression 46141952123 and real browser 46141952183 passed, including reload recovery, 37 s public dialogue, 2 fragments, 1 reviewed, 5 speaker intervals. Pages 46143990053 attempts 1/2 failed on missing/duplicate artifact metadata. Fix: unique attempt artifact name and wait for API visibility. Publication pending; no application code changed.
+
+28.11.2026: quality PR13 and protocol PR14 independent CI PASS. Combined into release/v12-quality-protocol via PR18, linked to stable 1.2 page, optional punctuation worker with same model revision ee31fdfc5304f876ea3b0dd72d30eda7e940b2b1, local checkpoint import, numeric speaker hints, partial source warning and DOCX. ASR unchanged. Integrated Chrome/WebKit release gate on staged Pages layout pending; no publication claim. 1.3 PR17 failed build before inference; remains separate.

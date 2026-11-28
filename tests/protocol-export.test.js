@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {createDraft,addEvidence,exportDraft,exportDraftJSON} from '../site/modules/protocol/protocol.js';
+test('export preserves full context and source time',()=>{let d=createDraft([{text:'не принимать препарат до осмотра',startSeconds:1,endSeconds:5}]);d=addEvidence(d,'recommendations','r0','принимать препарат');assert.match(exportDraft(d),/Полный контекст: не принимать препарат до осмотра/);assert.deepEqual(JSON.parse(exportDraftJSON(d)).sources,d.sources);});

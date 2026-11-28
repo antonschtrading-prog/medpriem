@@ -1,0 +1,5 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {attachSpeakerHints,assignRole} from '../site/modules/protocol/speaker-roles.js';import {createDraft,addEvidence,exportDraft} from '../site/modules/protocol/protocol.js';
+test('never infer clinical role from speaker clusters',()=>{const r=attachSpeakerHints([{text:'тест',startSeconds:0,endSeconds:10}],[{speaker:'A',startSeconds:0,endSeconds:10}]);let d=createDraft(r);assert.equal(d.sources[0].speaker,'A');assert.equal(d.sources[0].role,'unknown');d=assignRole(d,'r0','doctor');d=addEvidence(d,'history','r0','тест');assert.match(exportDraft(d),/Роль: врач/);});
+test('mixed voices remain unknown',()=>{const r=attachSpeakerHints([{text:'тест',startSeconds:0,endSeconds:10}],[{speaker:'A',startSeconds:0,endSeconds:5},{speaker:'B',startSeconds:5,endSeconds:10}]);assert.equal(r[0].speaker,null);});
+
+test('numeric speaker IDs from v1.2 remain hints only',()=>{const r=attachSpeakerHints([{text:'тест',startSeconds:0,endSeconds:10}],[{speaker:2,startSeconds:0,endSeconds:10}]);const d=createDraft(r);assert.equal(d.sources[0].speaker,2);assert.equal(d.sources[0].role,'unknown');});

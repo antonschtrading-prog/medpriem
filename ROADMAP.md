@@ -50,3 +50,10 @@ Validate benchmark contracts, browser integration, cancellation, exports; run re
 Parallel lab: run five models on the same public 37-second excerpt in independent runner jobs; compare hashes and segmentation, collect timings and disagreements. Use results and existing user exports to reduce the candidate set; avoid full-recording repeats unless they answer a specific remaining question. Local runtime remains serial until measured memory/performance support concurrency.
 
 1.2: validate one-button workflow, exact-file recovery, timing and bounded review, numeric preservation, public dialogue runtime. Publish after regression/browser gates. Then measure on Safari/iPhone, investigate neural punctuation and verified WebGPU provider; improve speaker accuracy using reference annotations. Do not rerun all five models.
+
+## Current 1.3–1.5 plan (28.11.2026)
+- 1.3: WebKit full 37s pipeline passed in non-isolated single-thread mode (46160278197, 115.041s), Chromium passed 47.496s. Verify long recordings, real iPhone/Mac, memory and recovery; retain serial engines because parallel gain was marginal. Publish after integration gates, preserve 1.2.
+- 1.4: finish local punctuation alignment and browser smoke; evaluate precision/recall on Russian annotated text and critical negations/doses; integrate conservative formatting without overwriting raw text; improve speaker attribution and completeness.
+- 1.5: integrate existing protocol editor with transcription, manual doctor/patient roles, source-linked drafts, TXT/JSON and later DOCX. Final privacy review and user validation; no automatic clinical conclusions or identifiable patient recordings before audit.
+
+1.2.1: verify integration gate in both browser engines, actual punctuation, preserved raw words and checkpoint, numeric speaker hint, manual roles, valid DOCX, no observed network payload, staged Pages paths. Merge release only after PASS and verify Pages. Then test on physical iPhone/Mac and reference quality. 1.3 optimization remains lab-only.

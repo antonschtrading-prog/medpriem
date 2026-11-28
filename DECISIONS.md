@@ -22,3 +22,5 @@
 14. 1.1.1: preserve benchmark progress locally after each fragment, require exact source hash on resume, explicit user deletion. No automatic upload or retention of audio.
 
 15. 1.2 approved: one-click cross-platform workflow, no specific hardware requirement. Primary RNNT and selective E2E RNNT verification; no automatic critical fact substitutions. Keep 1.1.1 rollback and experimental benchmark; hybrid research separate. Review cap 25% is experimental and may miss errors, deferred cues shown.
+
+16. 28.11.2026: user approved publication of quality/protocol update independently of unstable 1.3 acceleration. Use published 1.2 ASR, optional separate punctuation with conservative .9 gate, medical disagreements as flags, manual source-linked draft, DOCX. Joint browser gate before publishing; do not imply clinical validation or actual iPhone stability.

@@ -1,0 +1,7 @@
+Experimental local q8 model, Horizon-Labs/punctuation-restoration-small, v1.1 revision ee31fdf resolved to full hash in CI. Model card https://huggingface.co/Horizon-Labs/punctuation-restoration-small . Last-token labels only, exact offsets required; reject uncertainty and lexical changes through existing gate. Synthetic browser smoke, not clinical accuracy evaluation. No production integration until successful browser inference and offset verification. No identifiable patient data.
+
+Actual inference CI 46160368700 loaded model in both browsers (Chromium 4.407s, WebKit 8.278s) but failed because Transformers.js 3.8.1 returns decoded subwords/index without offsets. New exact reconstruction against raw text, consecutive indexes, whole-word ends only, entire-window abstention on mismatch; threshold unchanged .9. Browser assertions now require actual comma and safe terminal period. Recheck pending; no clinical accuracy claim.
+
+Both browser probes passed 46161338178. Added 20 authored reference examples and exact punctuation-event precision/recall/F1; no threshold tuning or clinical validation. Extended discrepancy flags for decimals and Russian tens/hundreds, no automatic correction. New CI pending.
+
+CI 46161688651: both browsers 10 TP, 0 FP, 26 FN, recall .278. Added six-threshold sweep on development and separate 12 authored validation sentences, without changing production .9 or medical gate. Added limited medical term mismatch flags; not a comprehensive medical vocabulary, no correction. CI pending.

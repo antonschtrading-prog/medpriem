@@ -1,0 +1,35 @@
+name: MedPriem local neural punctuation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/modules/quality/**'
+      - 'scripts/punctuation-browser.mjs'
+      - '.github/workflows/punctuation-browser.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.58.2
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: |
+          revision=$(curl -fsS --max-time 30 'https://huggingface.co/api/models/Horizon-Labs/punctuation-restoration-small/revision/ee31fdf' | jq -r .sha)
+          [[ "$revision" =~ ^ee31fdf[0-9a-f]{33}$ ]]
+          echo "MODEL_REVISION=$revision" >> "$GITHUB_ENV"
+      - run: |
+          python3 -m http.server 8765 --directory site >/tmp/medpriem-http.log 2>&1 &
+          sleep 1
+          node scripts/punctuation-browser.mjs
+        env:
+          BROWSER: ${{ matrix.browser }}

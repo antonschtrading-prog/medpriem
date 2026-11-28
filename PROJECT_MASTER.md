@@ -38,3 +38,6 @@ Separate local-only preview with automatic sequential five-model comparison, com
 
 ## 1.2
 Cross-device one-button candidate, GigaAM RNNT primary, bounded E2E RNNT review; native times, no blanket acoustic alignment, conservative speaker labels. WASM baseline, adaptive thread selection only when isolated; GPU not guaranteed. Local checkpoints, no stored audio. Preserve raw words and clinical facts.
+
+## 1.2.1 preview
+Approved separate release: preserve 1.2 acoustic engine and checkpoint schema, add postprocessing page with optional pinned local punctuation, medical disagreement flags, evidence-linked protocol editor, manual roles and local DOCX. No overwrite of source checkpoint. No experimental 1.3 acceleration or runtime changes. Only de-identified/public data, not for clinical use.

@@ -1,0 +1,1 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {clinicalAudit} from '../site/modules/quality/clinical-audit.js';test('flag changed decimal and spoken tens',()=>{for(const [a,b] of [['доза 0,5 мг','доза 5 мг'],['давление сто двадцать','давление сто тридцать']])assert.equal(clinicalAudit(a,b).needsReview,true);});
