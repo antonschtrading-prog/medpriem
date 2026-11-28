@@ -1,0 +1,23 @@
+name: MedPriem protocol editor smoke
+on:
+  pull_request:
+    paths:
+      - 'site/modules/protocol/**'
+      - 'scripts/protocol-editor-smoke.mjs'
+      - '.github/workflows/protocol-editor.yml'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.58.2
+      - run: npx playwright install --with-deps chromium
+      - run: |
+          python3 -m http.server 8765 --directory site &
+          node scripts/protocol-editor-smoke.mjs
