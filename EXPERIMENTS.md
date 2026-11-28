@@ -13,3 +13,5 @@
 1.3 lab: isolated HTTP header experiment, same-source threads and contention, GPU capability probe. No performance results yet. Separate from production.
 
 Chromium 140986144794: 2 threads improves diarization vs 1 on 4-core runner; 4 threads worse than 2. Concurrent 2 vs sequential 2 (partial ASR only) ~19.48 vs 23.42s. No full end-to-end or memory proof. GPU unavailable. SW scoped smoke introduced.
+
+Added experimental cache eligibility policy (pinned public model GET only, no persistent cache yet), parallel eligibility policy (explicit opt-in, known >=8 GB, >=4 cores, isolated; no default concurrent engines), extended 180 s public dialogue workflow manual dispatch. Need measured cold/warm fetch and browser memory before enabling cache or parallel. 180 s is intermediate stress test, not hour-long validation. Chromium full candidate previously 41.661s vs 61.173s baseline; WebKit startup race fix pending. No new speed claim.
