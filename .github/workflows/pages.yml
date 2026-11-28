@@ -52,9 +52,9 @@ jobs:
       - name: Stage current and previous only
         run: |
           mkdir -p publish
-          cp -a site/preview-v10 publish/preview-v10
+          cp -a site/preview-v12 publish/preview-v12
           cp -a site/preview-v11 publish/preview-v11
-          printf '%s\n' '<!doctype html><html lang="ru"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./preview-v11/"><title>МедПриём</title><a href="./preview-v11/">МедПриём 1.1</a> · <a href="./preview-v10/">Предыдущая версия 1.0</a></html>' > publish/index.html
+          printf '%s\n' '<!doctype html><html lang="ru"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./preview-v12/"><title>МедПриём</title><a href="./preview-v12/">МедПриём 1.2</a> · <a href="./preview-v11/">Предыдущая версия 1.1.1</a></html>' > publish/index.html
       - name: Upload release
         uses: actions/upload-pages-artifact@v3
         with:

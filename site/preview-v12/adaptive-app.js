@@ -17,7 +17,7 @@ function render(){
  if(report){
   for(const r of report.rows??[]){if(!r.review&&!r.boundaryReview&&!r.suspicious)continue;const line=document.createElement('p'),b=document.createElement('button');b.textContent='▶ '+formatTime(r.startSeconds);b.onclick=()=>{if(url){$('player').currentTime=r.startSeconds;$('player').play().catch(()=>{});}};line.append(b,document.createTextNode(' '+(r.review?.status??'стык')+' · '+(r.review?.critical??[]).join(', ')+' · '+(r.review?.alternate??r.text)));host.append(line);}
   if(report.reviewDeferred?.length){const p=document.createElement('p');p.textContent='Отложено для ручной проверки: '+report.reviewDeferred.map(j=>formatTime(report.rows[j.index].startSeconds)).join(', ');host.append(p);}
-  if(report.diarizationError){const p=document.createElement('p');p.textContent='Голоса: '+report.diarizationError;host.append(p);}
+  if(report.reviewSelected?.length){const p=document.createElement('p');p.textContent='Выборочная проверка: '+report.rows.filter(r=>r.review?.status==='compared').length+' / '+report.reviewSelected.length+' выбранных; всего '+report.rows.length+' фрагментов.';host.append(p);}if(report.diarizationError){const p=document.createElement('p');p.textContent='Голоса: '+report.diarizationError;host.append(p);}
  }
  actions();
 }
@@ -44,10 +44,10 @@ async function launch(){
   report??={schema:1,version:'1.2',file:f.name,fileHash:hash,rows:[],timing:{},turns:[],status:'running'};
   await persist();status('Подготовка звука');let decoded;const t=performance.now(),ctx=new AudioContext({sampleRate:16000});
   try{decoded=await ctx.decodeAudioData(bytes);}finally{await ctx.close();}
-  report.duration=validateAudioBuffer(decoded);
-  const pcm=to16kMono(decoded);
+  const duration=validateAudioBuffer(decoded);if(report.duration&&Math.abs(report.duration-duration)>.05)throw Error('Длительность исходного файла изменилась');report.duration=duration;
+  const pcm=to16kMono(decoded);if(signal.aborted)throw new DOMException('Остановлено','AbortError');
   if(!report.ranges){try{report.ranges=(await sileroPauseRanges(decoded,pcm)).ranges;report.vad='silero';}catch{report.ranges=pauseAwareRanges(decoded);report.vad='energy';}}
-  decoded=null;report.timing.preparation=(report.timing.preparation??0)+performance.now()-t;
+  decoded=null;if(signal.aborted)throw new DOMException('Остановлено','AbortError');report.timing.preparation=(report.timing.preparation??0)+performance.now()-t;
   if(!report.ranges.length||report.ranges.at(-1).endSample!==pcm.length)throw Error('Границы звука не совпадают');
   await persist();
   function createEngine(key){const worker=new Worker('./asr-worker.js?v=12',{type:'module'});let id=0;return {recognize:samples=>request(worker,{type:'recognize',id:++id,modelKey:key,samples,threads:policy.threads},signal,'recognized','error',600000),close:()=>worker.terminate()};}

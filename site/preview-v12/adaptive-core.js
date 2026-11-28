@@ -39,17 +39,17 @@ export function reviewPlan(rows,ranges,fraction=REVIEW_FRACTION){
   if(facts.medications.length){score+=50;reasons.push('лекарство');}
   if(facts.negation.length&&facts.medications.length){score+=35;reasons.push('отрицание при лекарстве');}
   if(r.boundaryReview){score+=20;reasons.push('стык');}
-  if(!r.timedChunks.length&&r.text.trim()){score+=10;reasons.push('нет точных меток');}
+  if(!r.timedChunks?.length&&r.text.trim()){score+=10;reasons.push('нет точных меток');}
   return score?[{index:i,score,reasons,window:recognitionWindow(ranges,i)}]:[];
  });
  all.sort((a,b)=>b.score-a.score||a.index-b.index);
- const cap=Math.min(all.length,Math.max(1,Math.ceil(rows.length*fraction)));
+ const cap=Math.min(all.length,Math.max(0,Math.ceil(rows.length*fraction)));
  return {selected:all.slice(0,cap),deferred:all.slice(cap)};
 }
 export function minimalFormat(text){
  // Case and terminal punctuation only. No guessed commas, no word or number normalization.
  const s=String(text??'').trim();if(!s)return s;
- return s.replace(/^\p{L}/u,c=>c.toLocaleUpperCase('ru-RU'))+(/[.!?…]$/u.test(s)?'':'.');
+ return s.replace(/^\p{L}/u,c=>c.toLocaleUpperCase('ru-RU'))+(/[.!?…]$/u.test(s)||/\d$/u.test(s)?'':'.');
 }
 export function displayTranscript(report){
  const rows=report.rows??[],turns=report.turns??[];
