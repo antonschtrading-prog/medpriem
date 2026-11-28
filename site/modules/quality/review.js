@@ -1,5 +1,6 @@
 import {loadCheckpoint} from '../../preview-v12/benchmark-storage.js';
-import {displayTranscript} from '../../preview-v12/adaptive-core.js';
+import {diarizedTranscript} from '../../preview-v12/diarization.js';
+import {formatTime} from '../../preview-v12/audio.js';
 import {safeFormat} from './format-safe.js';
 import {medicalReview} from './medical-review.js';
 const $=id=>document.getElementById(id);
@@ -9,7 +10,7 @@ function actions(){const busy=!!worker;$('load').disabled=busy;$('file').disable
 function load(data){
  if(!data||!Array.isArray(data.rows)||!data.rows.length||data.rows.length>10000||data.rows.some(r=>typeof r.text!=='string'||!Number.isFinite(r.startSeconds)||!Number.isFinite(r.endSeconds)||r.startSeconds<0||r.endSeconds<=r.startSeconds))throw Error('Некорректная расшифровка 1.2');
  if(data.status==='running')throw Error('Сначала завершите или остановите распознавание.');
- report=data;proposed=null;$('raw').value=displayTranscript(report);$('formatted').value='';
+ report=data;proposed=null;$('raw').value=report.turns?.length?diarizedTranscript(report.rows,report.turns,report.duration,formatTime):report.rows.map(r=>'['+formatTime(r.startSeconds)+'] '+(r.text||'[речь не распознана]')).join('\n\n');$('formatted').value='';
  const root=$('flags');root.replaceChildren();let checked=0,flagged=0;
  for(const r of report.rows){if(r.review?.status!=='compared'||typeof r.review.alternate!=='string')continue;checked++;const a=medicalReview(r.rawRecognition??r.text,r.review.alternate);if(!a.needsReview)continue;flagged++;const el=document.createElement('p');el.textContent=r.startSeconds.toFixed(1)+' с · '+r.text+' | Вторая модель: '+r.review.alternate+' | '+[...a.missing.map(x=>'нет: '+x.word),...a.added.map(x=>'добавлено: '+x.word),...a.termMissing.map(x=>'термин отсутствует: '+x),...a.termAdded.map(x=>'термин добавлен: '+x)].join('; ');root.append(el);}
  if(!flagged)root.textContent=checked?'В проверенных фрагментах выбранных расхождений не найдено.':'Нет результатов второй модели для сравнения.';
