@@ -8,14 +8,14 @@ const root=process.cwd(),dst='site/preview-v13-lab',vendor=path.join(dst,'vendor
 await fs.mkdir(vendor,{recursive:true});
 const wasmAlias={name:'cpu-only-onnx',setup(b){
  b.onResolve({filter:/^onnxruntime-web$/},()=>b.resolve('onnxruntime-web/wasm',{resolveDir:root,kind:'import-statement'}));
- b.onResolve({filter:/^onnxruntime-web\/(webgpu|all|webgl|experimental)$/},args=>({errors:[{text:'Unexpected GPU runtime import: '+args.path}]}));
+ b.onResolve({filter:/^onnxruntime-web\/(webgpu|all|webgl|experimental|jspi)$/},args=>({errors:[{text:'Unexpected GPU runtime import: '+args.path}]}));
 }};
 const entries={
  asr:"export {configureOrtWeb,loadHuggingfaceModel} from 'onnx-asr-web/browser'; export {createAsrModel} from 'onnx-asr-web';",
  diarization:"export * as ort from 'onnxruntime-web/wasm'; export {DiarizationPipeline} from 'diarization-js';"
 };
 for(const [name,contents] of Object.entries(entries)){
- const out=await build({stdin:{contents,resolveDir:root,sourcefile:name+'-wasm-entry.js'},bundle:true,format:'esm',platform:'browser',target:'es2022',minify:true,metafile:true,outfile:path.join(vendor,name+'.mjs'),plugins:[wasmAlias]});
+ const out=await build({stdin:{contents,resolveDir:root,sourcefile:name+'-wasm-entry.js'},bundle:true,format:'esm',platform:'browser',conditions:['onnxruntime-web-use-extern-wasm','browser'],target:'es2022',minify:true,metafile:true,outfile:path.join(vendor,name+'.mjs'),plugins:[wasmAlias]});
  const inputs=Object.keys(out.metafile.inputs);
  assert.ok(inputs.some(x=>/onnxruntime-web\/dist\/ort\.wasm[^/]*\.mjs$/i.test(x)),JSON.stringify(inputs.filter(x=>x.includes('onnxruntime-web'))));
  assert.ok(!inputs.some(x=>/onnxruntime-web\/dist\/.*(?:jsep|webgpu|webgl|ort\.(?:bundle\.)?min\.mjs)/i.test(x)),'Unexpected universal/GPU ORT bundle');
