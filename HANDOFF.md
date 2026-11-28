@@ -24,3 +24,5 @@ WebKit diagnosis: 140986144955 and 140989486870 cancelled after 45 minutes; latt
 Nine independent WebKit diagnostics passed, run 46154479166; full candidate still stalls after ready, 46154479058. Candidate now bypasses SW and requests single thread for WebKit; host watchdog 240s, progress sampling. No claim of fix until full pipeline passes. Parallel full compute 27.79/26.38/26.83s, not worth production memory cost yet.
 
 Full 37s stable WebKit PASS 46160278197 (115.041s), Chromium 47.496s. Added 3/10-minute profiles in both browser engines with configurable host deadline. Real iPhone/Mac not validated; 180s per-worker diarization timeout may require chunking on longer clips, report failures rather than silently relaxing. No production publication yet.
+
+Added binary speaker scoring and integration gate manifest. The latest WebKit full 37s recheck failed watchdog, so previous PASS is not proof of stability. Long recordings still running; no validated iPhone or final release. PR13 threshold sweep/medical flags and PR14 DOCX submitted separately.
