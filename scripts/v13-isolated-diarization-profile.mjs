@@ -51,6 +51,9 @@ try{
  assert.ok(before.reviewSelected.every(i=>before.rows[i].review?.status==='compared'));
  assert.ok(before.rows.every(r=>typeof r.text==='string'));
  assert.ok(before.rows.some(r=>r.text.trim()));
+ assert.equal(before.ranges[0].startSample,0);
+ assert.ok(before.ranges.every((r,i)=>Number.isInteger(r.startSample)&&Number.isInteger(r.endSample)&&r.endSample>r.startSample&&(i===0||r.startSample===before.ranges[i-1].endSample)));
+ assert.ok(Math.abs(before.ranges.at(-1).endSample/16000-before.duration)<=.05,'Audio coverage incomplete');
  assert.ok(!before.diarizationDone);
  assert.ok(!workers.some(w=>w.phase==='asr'&&w.url.includes('diarization-worker')));
  const snapshot=await ctx.storageState({indexedDB:true});
