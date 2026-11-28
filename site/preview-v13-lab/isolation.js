@@ -7,7 +7,7 @@ export async function enableIsolation(){
  try{
   if(sessionStorage.getItem(key))return {isolated:false,reason:'reload-did-not-isolate'};
   const r=await navigator.serviceWorker.register('./isolation-sw.js',{scope:'./'});
-  await navigator.serviceWorker.ready;
+  await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('service-worker-ready-timeout')),8000))]);
   if(!navigator.serviceWorker.controller){
    await new Promise(resolve=>{const done=()=>{clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',done);resolve();};const timer=setTimeout(done,8000);navigator.serviceWorker.addEventListener('controllerchange',done);if(navigator.serviceWorker.controller)done();});
   }
