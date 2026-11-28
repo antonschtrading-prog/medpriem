@@ -1,0 +1,3 @@
+// Suggestions are not clinical facts. Always require confirmation, preserve full context.
+const patterns={complaints:/жалоб/iu,history:/анамнез|болею|перен[её]с|началось/iu,examination:/осмотр|измерили|при пальпации/iu,prescriptions:/назначаю|назначили|рецепт/iu,recommendations:/рекомендую|рекомендуется|советую/iu};
+export function suggestSections(sources){return sources.flatMap(source=>{const matches=Object.entries(patterns).filter(([k,re])=>re.test(source.text)).map(([k])=>k);return matches.length===1?[{sourceId:source.id,section:matches[0],quote:source.text,requiresConfirmation:true}]:[];});}
