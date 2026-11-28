@@ -86,3 +86,5 @@ Recovery validation: browser 46032441438 PASS real model -> reload -> wrong-file
 1.2 implementation batch: PR9 merged, run 46056547942 success. Implemented separate 1.2 preview; real runtime and performance tests pending. No claim of WebGPU, neural punctuation, clinical accuracy or speed target reached.
 
 28.11.2026: PR10 merged 4cd6736; regression 46141952123 and real browser 46141952183 passed, including reload recovery, 37 s public dialogue, 2 fragments, 1 reviewed, 5 speaker intervals. Pages 46143990053 attempts 1/2 failed on missing/duplicate artifact metadata. Fix: unique attempt artifact name and wait for API visibility. Publication pending; no application code changed.
+
+Pages 46144507571 failed despite successful upload and metadata visibility through gh; action v4 still found zero artifacts. Main 8d91d1f updates official actions and propagation delay. No confirmed deployment. New uninterrupted cross-browser profiling PR, actual timings pending; no mobile hardware claim.
