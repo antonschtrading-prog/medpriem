@@ -11,7 +11,9 @@ try{
  const before=await read();assert.equal(before.rows.length,1);
  await page.reload();await page.waitForFunction(()=>document.querySelector('#storage').textContent.includes('Восстановлено 1'));
  await page.locator('#audio').setInputFiles('/tmp/public-dialogue.wav');await page.locator('#consent').check();await page.locator('#start').click();
- await page.waitForFunction(()=>document.querySelector('#stop').disabled&&!document.querySelector('#json').disabled,{},{timeout:1200000});
+ await page.waitForFunction(()=>!document.querySelector('#stop').disabled || /завершена|Ошибка:|Другая вкладка|уже идёт/.test(document.querySelector('#status').textContent),{},{timeout:30000});
+ await page.waitForFunction(()=>document.querySelector('#stop').disabled && /Расшифровка завершена|Дополнительная обработка завершена|Ошибка:|уже идёт/.test(document.querySelector('#status').textContent),{},{timeout:1200000});
+ console.log('Final UI:',await page.locator('#status').textContent()); console.log('Checkpoint:',JSON.stringify(await read(),null,2).slice(0,2000));
  const [d]=await Promise.all([page.waitForEvent('download'),page.locator('#json').click()]);
  const r=JSON.parse((await fs.readFile(await d.path(),'utf8')).replace(/^\uFEFF/,''));
  assert.equal(r.status,'complete');assert.deepEqual(r.rows[0].rawRecognition,before.rows[0].rawRecognition);
