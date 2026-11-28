@@ -16,3 +16,5 @@ Parallel cycle: Chromium SW real inference 140989487116 PASS (48.929s to 37.279s
 Cycle 4: staged complete 1.3 candidate, separate IndexedDB and lock, adaptive 1/2 threads, single retry on runtime error, no parallel heavy models. Candidate files generated in CI only. No publication or validation yet.
 
 Cycle 5: full candidate browser profile added, Chromium and WebKit. Compare end-to-end to 1.2 baseline; verify actual 1/2-thread selection before claim. PR14 runner fixed and editor smoke 46151099511 PASS; section suggestions not wired. PR13 critical-punctuation guard committed 108f4af, CI pending. No production changes.
+
+Full candidate run 46151396486: Chromium 41.661s for 37s audio, SUCCESS, zero observed external writes. WebKit failed before inference: start disabled, likely form interaction during initial SW reload/IndexedDB startup. Fix explicit readiness barrier, disable file/consent until ready, nonblocking persistence request, log actual boot and blocked state. Hypothesis pending rerun; not a proven WebKit engine failure. No production changes.
