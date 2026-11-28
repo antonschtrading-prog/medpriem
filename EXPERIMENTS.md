@@ -11,3 +11,5 @@
 28.11.2026: Pages 46144975791 SUCCESS. Cross-browser profile 46145722121 SUCCESS Chromium/WebKit; WebKit 116.645s for 37s input, RTF 3.153, ASR 36.811s, review 26.393s, diarization 52.560s, 2/2 timed rows, 2 speakers, 5 intervals, observed external writes 0. Transcript and intervals match first Chromium run. Not actual iPhone validation. Diarization batch comparison 46145722192 SUCCESS: wall 20.002/19.945/20.919/22.709/19.684s (batch 1/2/4/8/repeat 1), all identical intervals. No meaningful benefit; retain batch 1. No reference DER or memory measurement. Next investigate safe device-adaptive WASM threading and lighter diarization candidate, independent punctuation with lexical invariance. Do not repeat batch experiment without new backend or evidence.
 
 1.3 lab: isolated HTTP header experiment, same-source threads and contention, GPU capability probe. No performance results yet. Separate from production.
+
+Chromium 140986144794: 2 threads improves diarization vs 1 on 4-core runner; 4 threads worse than 2. Concurrent 2 vs sequential 2 (partial ASR only) ~19.48 vs 23.42s. No full end-to-end or memory proof. GPU unavailable. SW scoped smoke introduced.
