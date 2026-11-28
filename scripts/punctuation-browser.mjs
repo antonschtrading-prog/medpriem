@@ -7,10 +7,10 @@ try{
  const page=await browser.newPage(),writes=[];page.on('request',r=>{if(r.postDataBuffer()?.length)writes.push(r.url());});page.on('console',m=>console.log(m.text()));
  await page.goto('http://127.0.0.1:8765/modules/quality/punctuation-lab.html');
  const results=await page.evaluate(async revision=>{
-  const {createPunctuator}=await import('./punctuation-runtime.js');const start=performance.now(),p=await createPunctuator({revision});const loadMs=performance.now()-start;console.log('model ready '+loadMs);
+  const {createPunctuator}=await import('./punctuation-runtime.js');const {FIXTURES}=await import('./punctuation-fixture.js');const {scorePunctuation}=await import('./punctuation-metrics.js');const start=performance.now(),p=await createPunctuator({revision});const loadMs=performance.now()-start;console.log('model ready '+loadMs);
   const rows=[];try{for(const raw of ['здравствуйте как дела сегодня','скажите пожалуйста когда началась боль','не принимайте препарат до осмотра','давление сто двадцать на восемьдесят','я думаю что сегодня будет дождь']){
    const t=performance.now(),r=await p.propose(raw);rows.push({raw,...r,ms:performance.now()-t});
-  }}finally{await p.dispose();}return {loadMs,rows};
+  }const scored=[];for(const [raw,reference] of FIXTURES){const r=await p.propose(raw);scored.push({raw,reference,actual:r.proposal.text});}return {loadMs,rows,scored,metrics:scorePunctuation(scored)};}finally{await p.dispose();}
  },revision);
  console.log(JSON.stringify(results,null,2));assert.equal(writes.length,0);assert.ok(results.rows.every(x=>x.tags.length>0));assert.ok(results.rows.every(x=>x.tags.every(t=>Number.isInteger(t.index)&&typeof t.word==='string')),'Indexed token stream unavailable');assert.ok(results.rows.some(x=>x.proposal.accepted&&x.proposal.text!==x.raw),'No accepted punctuation proposal');
  assert.ok(results.rows.some(x=>x.raw==='я думаю что сегодня будет дождь'&&x.proposal.text.includes('думаю,')),'Expected internal comma missing');assert.ok(results.rows.some(x=>x.raw==='не принимайте препарат до осмотра'&&x.proposal.text==='не принимайте препарат до осмотра.'),'Expected safe terminal punctuation missing');
