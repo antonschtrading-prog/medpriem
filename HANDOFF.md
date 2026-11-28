@@ -14,3 +14,5 @@ SW isolation smoke WebKit 140988977928 PASS with SharedArrayBuffer true and isol
 Parallel cycle: Chromium SW real inference 140989487116 PASS (48.929s to 37.279s, identical outputs); WebKit running. Added conservative 1/2-thread selection and scoped retry contract, not yet integrated into app. No concurrency by default. Need real full-length app test and fallback integration before publication.
 
 Cycle 4: staged complete 1.3 candidate, separate IndexedDB and lock, adaptive 1/2 threads, single retry on runtime error, no parallel heavy models. Candidate files generated in CI only. No publication or validation yet.
+
+Cycle 5: full candidate browser profile added, Chromium and WebKit. Compare end-to-end to 1.2 baseline; verify actual 1/2-thread selection before claim. PR14 runner fixed and editor smoke 46151099511 PASS; section suggestions not wired. PR13 critical-punctuation guard committed 108f4af, CI pending. No production changes.
