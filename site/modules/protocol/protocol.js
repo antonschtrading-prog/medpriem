@@ -15,5 +15,7 @@ export function addEvidence(draft,section,sourceId,quote){
 }
 export function exportDraft(draft){
  const labels={complaints:'Жалобы',history:'Анамнез',examination:'Осмотр',prescriptions:'Назначения',recommendations:'Рекомендации'};
- return ['ЧЕРНОВИК — НЕ ПРОВЕРЕН. НЕ МЕДИЦИНСКОЕ ЗАКЛЮЧЕНИЕ.',...SECTIONS.map(s=>labels[s]+':\n'+(draft.sections[s].map(e=>{const r=draft.sources.find(x=>x.id===e.sourceId);if(!r||!r.text.includes(e.quote))throw Error('Invalid evidence');return '• '+e.quote+' [источник '+r.id+', '+r.startSeconds.toFixed(1)+'–'+r.endSeconds.toFixed(1)+' с]';}).join('\n')||'Не заполнено'))].join('\n\n');
+ return ['ЧЕРНОВИК — НЕ ПРОВЕРЕН. НЕ МЕДИЦИНСКОЕ ЗАКЛЮЧЕНИЕ.',...SECTIONS.map(s=>labels[s]+':\n'+(draft.sections[s].map(e=>{const r=draft.sources.find(x=>x.id===e.sourceId);if(!r||!r.text.includes(e.quote))throw Error('Invalid evidence');return '• '+e.quote+' [источник '+r.id+', '+r.startSeconds.toFixed(1)+'–'+r.endSeconds.toFixed(1)+' с]\n  Полный контекст: '+r.text;}).join('\n')||'Не заполнено'))].join('\n\n');
 }
+
+export function exportDraftJSON(draft){exportDraft(draft);return JSON.stringify({...draft,status:'draft'},null,2);}
