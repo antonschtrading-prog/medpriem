@@ -1,0 +1,2 @@
+# MedPriem project rules
+Read PROJECT_MASTER, DECISIONS, STATUS, ROADMAP, HANDOFF and EXPERIMENTS before work. Preserve validated preview rollback. No paid services, identifiable patient audio, invented accuracy, automatic changes of critical facts or unsupported speaker labels. Commit cohesive changes and verify CI/browser before publishing. Record results and failures; no redundant five-model full tests. Separate experimental hybrid from this repo.

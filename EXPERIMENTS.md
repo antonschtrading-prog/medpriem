@@ -1,0 +1,5 @@
+# Experiments
+- 1.1 local 12:21 dialogue: 4/5 completed; RNNT ~19 min, E2E RNNT ~42 min, E2E CTC ~11 min, Medium ~78 min, Turbo ~87 min incomplete. Overall ~5h09m. Full CTC alignment ~53 min, accepted 10/28. Diarization ~19 min. Prior conversation analysis, not a clinical benchmark.
+- GitHub 46056547942: verified identical 37s excerpt, all five completed; RNNT 22.96s, E2E RNNT 21.30s, E2E CTC 20.91s, Medium 130.95s, Turbo 524.63s. No verified accuracy reference for this excerpt. Do not extrapolate runner speed to mobile.
+- 1.1.1 recovery verified 46032441438. Prior 1.1 lost memory on reload.
+- 1.2 candidate: bounded review 25%, no blanket CTC alignment, preserve numbers, native times, conservative overlap, minimal case/terminal punctuation; not neural punctuation. WASM adaptive threads only where cross-origin isolation allows; WebGPU not enabled without proven compatibility. No measured improvement yet.

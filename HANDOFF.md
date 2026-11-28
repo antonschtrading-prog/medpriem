@@ -1,0 +1,2 @@
+# Current handoff
+Main 18f5ae5 includes PR9 verified public benchmark, published 1.1.1 rollback. 1.2 branch feature/v12-adaptive: one-click RNNT + limited E2E RNNT checks + diarization, local checkpoint and device policy. Review and speaker uncertainty explicit. Next verify CI and real short public dialogue browser; then publish after gates. No full five-model rerun required. Clinical deployment prohibited. Hybrid shared encoder separate research. Open issues: neural punctuation, actual WebGPU, mobile speed/memory and diarization accuracy.
