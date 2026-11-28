@@ -4,7 +4,8 @@ const audio=document.querySelector('#audio'),consent=document.querySelector('#co
 audio.disabled=true;consent.disabled=true;
 status.textContent='Подготовка вычислительного режима…';
 try{
- const result=await enableIsolation();
+ const webkit=/AppleWebKit/i.test(navigator.userAgent)&&!/Chrome|Chromium|Edg\//i.test(navigator.userAgent);
+ const result=webkit?{isolated:false,reason:'webkit-stable-single-thread'}:await enableIsolation();
  if(result.reason!=='reloading'){
   await import('./adaptive-app.js');
   window.candidateBoot=result;

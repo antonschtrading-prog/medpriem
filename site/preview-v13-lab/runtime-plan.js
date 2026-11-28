@@ -1,6 +1,6 @@
 // Conservative default: no simultaneous heavyweight engines without opt-in experimental evidence.
-export function planRuntime({isolated=false,shared=false,cores=1,memory=null,failedIsolation=false}={}){
- const usable=isolated&&shared&&!failedIsolation;
+export function planRuntime({isolated=false,shared=false,cores=1,memory=null,failedIsolation=false,webkit=false}={}){
+ const usable=isolated&&shared&&!failedIsolation&&!webkit;
  const threads=usable&&Number.isFinite(cores)&&cores>=4&&(memory==null||Number.isFinite(memory)&&memory>=4)?2:1;
  return Object.freeze({threads,provider:'wasm',parallelModels:1,isolated:usable});
 }
