@@ -1,0 +1,36 @@
+name: MedPriem 1.2.1 integrated release gate
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/preview-v12/**'
+      - 'site/modules/**'
+      - 'scripts/stage-release.mjs'
+      - 'scripts/release-quality-protocol.mjs'
+      - '.github/workflows/release-quality-protocol.yml'
+      - '.github/workflows/pages.yml'
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: true
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check && npm test
+      - run: npm install --no-save playwright@1.58.2
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: |
+          node scripts/stage-release.mjs /tmp/medpriem-release/medpriem
+          python3 -m http.server 8765 --directory /tmp/medpriem-release > /tmp/medpriem-http.log 2>&1 &
+          sleep 1
+          node scripts/release-quality-protocol.mjs
+        env:
+          BROWSER: ${{ matrix.browser }}
