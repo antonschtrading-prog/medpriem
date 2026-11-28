@@ -15,6 +15,4 @@ export async function enableIsolation(){
   sessionStorage.setItem(key,'1');location.reload();return {isolated:false,reason:'reloading'};
  }catch(e){return {isolated:false,reason:String(e.message||e)};}
 }
-const result=await enableIsolation();
-document.querySelector('#status').textContent=JSON.stringify(result);
-window.labIsolation=result;
+if(!location.pathname.endsWith('/candidate.html')){const result=await enableIsolation();document.querySelector('#status').textContent=JSON.stringify(result);window.labIsolation=result;}

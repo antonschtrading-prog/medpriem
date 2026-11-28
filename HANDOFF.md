@@ -12,3 +12,5 @@ Chromium isolated lab 46147323554 job 140986144794 SUCCESS: 1/2/4/repeat1 diar w
 SW isolation smoke WebKit 140988977928 PASS with SharedArrayBuffer true and isolation confined to lab. Chromium pending. New real inference gate on plain static server + scoped SW: RNNT and E2E RNNT plus diarization for 1/2 threads, exact text/chunks/turns equality; copies worker dependencies only within CI. Fix SW readiness timeout. No production publication until verified. Next integrate 2-thread adaptive policy and evaluate memory-aware concurrency; no blanket parallelism.
 
 Parallel cycle: Chromium SW real inference 140989487116 PASS (48.929s to 37.279s, identical outputs); WebKit running. Added conservative 1/2-thread selection and scoped retry contract, not yet integrated into app. No concurrency by default. Need real full-length app test and fallback integration before publication.
+
+Cycle 4: staged complete 1.3 candidate, separate IndexedDB and lock, adaptive 1/2 threads, single retry on runtime error, no parallel heavy models. Candidate files generated in CI only. No publication or validation yet.
