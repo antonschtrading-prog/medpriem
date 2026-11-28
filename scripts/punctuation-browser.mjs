@@ -12,6 +12,7 @@ try{
    const t=performance.now(),r=await p.propose(raw);rows.push({raw,...r,ms:performance.now()-t});
   }}finally{await p.dispose();}return {loadMs,rows};
  },revision);
- console.log(JSON.stringify(results,null,2));assert.equal(writes.length,0);assert.ok(results.rows.every(x=>x.tags.length>0));assert.ok(results.rows.some(x=>x.tags.some(t=>Number.isInteger(t.start)&&Number.isInteger(t.end))),'Tokenizer offsets unavailable');assert.ok(results.rows.some(x=>x.proposal.accepted&&x.proposal.text!==x.raw),'No accepted punctuation proposal');
+ console.log(JSON.stringify(results,null,2));assert.equal(writes.length,0);assert.ok(results.rows.every(x=>x.tags.length>0));assert.ok(results.rows.every(x=>x.tags.every(t=>Number.isInteger(t.index)&&typeof t.word==='string')),'Indexed token stream unavailable');assert.ok(results.rows.some(x=>x.proposal.accepted&&x.proposal.text!==x.raw),'No accepted punctuation proposal');
+ assert.ok(results.rows.some(x=>x.raw==='я думаю что сегодня будет дождь'&&x.proposal.text.includes('думаю,')),'Expected internal comma missing');assert.ok(results.rows.some(x=>x.raw==='не принимайте препарат до осмотра'&&x.proposal.text==='не принимайте препарат до осмотра.'),'Expected safe terminal punctuation missing');
  const lex=s=>s.match(/[\p{L}\p{N}]+/gu)||[];for(const x of results.rows)assert.deepEqual(lex(x.proposal.text),lex(x.raw));
 }finally{clearTimeout(watchdog);await browser.close();}
