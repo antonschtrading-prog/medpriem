@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "base": "15aeb5ccd99cda9fb679b348b139cd8416aa788d",
+  "components": [
+    {
+      "pr": 12,
+      "role": "runtime",
+      "required": [
+        "Chromium complete",
+        "WebKit complete",
+        "extended recording outcomes"
+      ]
+    },
+    {
+      "pr": 13,
+      "role": "quality",
+      "required": [
+        "regression",
+        "punctuation browser",
+        "threshold evaluation"
+      ]
+    },
+    {
+      "pr": 14,
+      "role": "protocol",
+      "required": [
+        "regression",
+        "editor browser",
+        "Word package validation"
+      ]
+    }
+  ],
+  "release": {
+    "publish": false,
+    "rawTranscriptImmutable": true,
+    "clinicalUse": false,
+    "realIphoneVerified": false
+  }
+}
