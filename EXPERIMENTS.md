@@ -5,3 +5,5 @@
 - 1.2 candidate: bounded review 25%, no blanket CTC alignment, preserve numbers, native times, conservative overlap, minimal case/terminal punctuation; not neural punctuation. WASM adaptive threads only where cross-origin isolation allows; WebGPU not enabled without proven compatibility. No measured improvement yet.
 
 - 1.2 recovery browser 46141952183 PASS: 37s, 2 fragments, 1 reviewed, 5 turns, reported preparation .748s, ASR 8.445s (only resumed processing), review 7.956s, diarization 19.711s. Not full elapsed time, not DER. First browser test raced against UI completion; fixed wait condition in 35291e2. Pages failures separate from app. New uninterrupted Chromium/WebKit profile added.
+
+- Chromium uninterrupted baseline 140979190269: 61.173s total / 37s audio, RTF 1.653. Diarization 26.583s. Test batch sizes 1/2/4/8 with repeat baseline; output agreement is not reference accuracy. Production unchanged.
