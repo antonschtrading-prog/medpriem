@@ -10,15 +10,31 @@ const wasmAlias={name:'cpu-only-onnx',setup(b){
  b.onResolve({filter:/^onnxruntime-web$/},()=>b.resolve('onnxruntime-web/wasm',{resolveDir:root,kind:'import-statement'}));
  b.onResolve({filter:/^onnxruntime-web\/(webgpu|all|webgl|experimental|jspi)$/},args=>({errors:[{text:'Unexpected GPU runtime import: '+args.path}]}));
 }};
+// The package supports both browser and Node artifact loading. We already supply
+// all three artifacts as bytes; its Node disk-cache branch must never execute.
+// Stub ONLY the three known dynamic imports from this exact pinned source.
+// Any newly introduced server dependency or attempted invocation fails loudly.
+const browserArtifactsOnly={name:'browser-artifacts-only',setup(b){
+ b.onResolve({filter:/^node:/},args=>{
+  const allowed=['node:fs/promises','node:path','node:os'].includes(args.path)
+    && args.kind==='dynamic-import'
+    && /[/\\]diarization-js[/\\]dist[/\\]artifacts\.js$/.test(args.importer);
+  if(!allowed)return {errors:[{text:'Unexpected Node dependency: '+args.path+' in '+args.importer+' ('+args.kind+')'}]};
+  console.log('BLOCKED_NODE_CACHE_IMPORT',args.path);
+  return {path:args.path,namespace:'forbidden-node-cache'};
+ });
+ b.onLoad({filter:/.*/,namespace:'forbidden-node-cache'},args=>({loader:'js',contents:'throw new Error('+JSON.stringify('Node disk cache forbidden in browser: '+args.path)+');'}));
+}};
 const entries={
  asr:"export {configureOrtWeb,loadHuggingfaceModel} from 'onnx-asr-web/browser'; export {createAsrModel} from 'onnx-asr-web';",
  diarization:"export * as ort from 'onnxruntime-web/wasm'; export {DiarizationPipeline} from 'diarization-js';"
 };
 for(const [name,contents] of Object.entries(entries)){
- const out=await build({stdin:{contents,resolveDir:root,sourcefile:name+'-wasm-entry.js'},bundle:true,format:'esm',platform:'browser',conditions:['onnxruntime-web-use-extern-wasm','browser'],target:'es2022',minify:true,metafile:true,outfile:path.join(vendor,name+'.mjs'),plugins:[wasmAlias]});
+ const out=await build({stdin:{contents,resolveDir:root,sourcefile:name+'-wasm-entry.js'},bundle:true,format:'esm',platform:'browser',conditions:['onnxruntime-web-use-extern-wasm','browser'],target:'es2022',minify:true,metafile:true,outfile:path.join(vendor,name+'.mjs'),plugins:[wasmAlias,browserArtifactsOnly]});
  const inputs=Object.keys(out.metafile.inputs);
  assert.ok(inputs.some(x=>/onnxruntime-web\/dist\/ort\.wasm[^/]*\.mjs$/i.test(x)),JSON.stringify(inputs.filter(x=>x.includes('onnxruntime-web'))));
  assert.ok(!inputs.some(x=>/onnxruntime-web\/dist\/.*(?:jsep|webgpu|webgl|ort\.(?:bundle\.)?min\.mjs)/i.test(x)),'Unexpected universal/GPU ORT bundle');
+ assert.ok(!Object.values(out.metafile.outputs).some(o=>o.imports.some(i=>i.path.startsWith('node:'))),'Node imports escaped bundle');
  console.log('CPU_ONLY_BUNDLE',name,inputs.filter(x=>x.includes('onnxruntime-web')));
 }
 for(const name of ['ort-wasm-simd-threaded.mjs','ort-wasm-simd-threaded.wasm']){
